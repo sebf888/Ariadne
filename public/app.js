@@ -216,8 +216,12 @@ const ALL_TRACKS_HOURS = 12;
 let allTracksOn = false;
 let allTracksLayer = null;
 let allTracksData = new Map();        // mmsi(string) -> [{lat,lng,ts}]
-const tracksRenderer = L.canvas({ padding: 0.5 }); // fast for many polylines
-const shipsRenderer = L.canvas({ padding: 0.5 });  // all vessel markers, one paint
+// `tolerance` widens the canvas hit area so the thin (1.5px) tracks are easy to
+// click — clicking a track selects its vessel, exactly like its marker.
+const tracksRenderer = L.canvas({ padding: 0.5, tolerance: 6 }); // fast for many polylines
+// `tolerance` enlarges the click hit-area (radius + tolerance) without changing
+// the drawn marker size — easier to tap/click a vessel.
+const shipsRenderer = L.canvas({ padding: 0.5, tolerance: 6 });  // all vessel markers, one paint
 
 // --- Init -------------------------------------------------------------------
 
@@ -355,10 +359,14 @@ function drawAllTracks() {
     if (!passes(m)) continue;
     const pts = allTracksData.get(id);
     if (!pts || pts.length < 2) continue;
-    L.polyline(pts.map((p) => [+p.lat, +p.lng]), {
+    const line = L.polyline(pts.map((p) => [+p.lat, +p.lng]), {
       color: colorOf(m.vessel), weight: 1.5, opacity: 0.35,
-      renderer: tracksRenderer, interactive: false,
-    }).addTo(allTracksLayer);
+      renderer: tracksRenderer, interactive: true,
+    });
+    // Clicking a track selects its vessel — same as clicking the ship marker.
+    // Read the marker's latest vessel at click time (positions update on refresh).
+    line.on('click', () => showTrail(m.vessel));
+    line.addTo(allTracksLayer);
   }
 }
 
