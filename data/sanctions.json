@@ -1,0 +1,22 @@
+{
+  "_comment": "Operator-maintained designated-vessel watchlist. Ariadne cross-matches each live vessel against these by IMO (durable, survives MMSI/flag changes) and falls back to MMSI. This file is reference data only — Ariadne ships it EMPTY. Populate `entries` from authoritative designations (e.g. OFAC SDN, OFSI, EU consolidated list); every match should be verifiable against `source`. A match is an exposure signal, not an adjudication. Re-read on each /api/integrity request, so edits take effect without a restart.",
+  "_schema": {
+    "imo": "string|number — 7-digit IMO (preferred key)",
+    "mmsi": "string|number — 9-digit MMSI (fallback key; either imo or mmsi is required)",
+    "name": "string — vessel name at time of listing (display only)",
+    "program": "string — listing authority/program, e.g. 'OFAC SDN', 'OFSI', 'EU'",
+    "listed": "string — ISO date the vessel was designated",
+    "source": "string — citation/URL for the designation",
+    "note": "string — free-text (reason, aliases, owner)"
+  },
+  "_example": {
+    "imo": "9999999",
+    "mmsi": "538000000",
+    "name": "EXAMPLE VESSEL — replace; not a real designation",
+    "program": "OFAC SDN",
+    "listed": "2024-01-01",
+    "source": "https://sanctionssearch.ofac.treas.gov/",
+    "note": "Illustrative schema row. Remove before use."
+  },
+  "entries": []
+}

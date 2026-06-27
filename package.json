@@ -1,0 +1,20 @@
+{
+  "name": "ariadne",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Strait of Hormuz maritime intelligence — ingestion + live map",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node server.js",
+    "ingest": "node ingest.js",
+    "dev": "RUN_INGEST_IN_PROCESS=1 node server.js",
+    "migrate": "node migrate.js",
+    "selftest": "node selftest.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "pg": "^8.13.1"
+  }
+}
