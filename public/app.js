@@ -216,6 +216,15 @@ const ALL_TRACKS_HOURS = 12;
 let allTracksOn = false;
 let allTracksLayer = null;
 let allTracksData = new Map();        // mmsi(string) -> [{lat,lng,ts}]
+
+// Track-density heatmap overlay: where ships actually travel. Built from the
+// same /api/tracks data, but densified along each leg so transit lanes (sparse,
+// fast AIS reports) read as continuous paths rather than scattered dots.
+let heatmapHours = 24;                // selectable timeframe (server caps at 72)
+let heatWeight = 'density';           // density | speed | dwell — what each sample contributes
+let heatmapOn = false;
+let heatLayer = null;
+let heatTracksData = new Map();       // mmsi(string) -> [{lat,lng,ts,sog}]
 // `tolerance` widens the canvas hit area so the thin (1.5px) tracks are easy to
 // click — clicking a track selects its vessel, exactly like its marker.
 const tracksRenderer = L.canvas({ padding: 0.5, tolerance: 6 }); // fast for many polylines
@@ -278,12 +287,20 @@ async function init() {
   wireControls();
   setMode('type');
   refresh();
+  refreshActivity();
   refreshCrossings();
   refreshFlow();
+  refreshFlowSeries();
+  refreshStorage();
+  refreshDestinations();
   refreshIntegrity();
   setInterval(refresh, REFRESH_MS);
+  setInterval(refreshActivity, REFRESH_MS);
   setInterval(refreshCrossings, REFRESH_MS);
   setInterval(refreshFlow, REFRESH_MS);
+  setInterval(refreshFlowSeries, REFRESH_MS);
+  setInterval(refreshStorage, REFRESH_MS);
+  setInterval(refreshDestinations, REFRESH_MS);
   setInterval(refreshIntegrity, REFRESH_MS);
 
   // The map shares the viewport with the dashboard now — keep Leaflet sized.
@@ -306,6 +323,31 @@ function wireControls() {
   document.getElementById('alltracks-cb').addEventListener('change', (e) => {
     setAllTracks(e.target.checked);
   });
+  document.getElementById('heatmap-cb').addEventListener('change', (e) => {
+    setHeatmap(e.target.checked);
+  });
+  document.querySelectorAll('#heat-range button').forEach((b) => {
+    b.addEventListener('click', () => {
+      heatmapHours = Number(b.dataset.hours);
+      document.querySelectorAll('#heat-range button').forEach((x) =>
+        x.classList.toggle('active', x === b));
+      if (heatmapOn) loadHeatmap(); // refetch the new window, then redraw
+    });
+  });
+  document.querySelectorAll('#heat-weight button').forEach((b) => {
+    b.addEventListener('click', () => {
+      heatWeight = b.dataset.weight;
+      document.querySelectorAll('#heat-weight button').forEach((x) =>
+        x.classList.toggle('active', x === b));
+      if (heatmapOn) drawHeatmap(); // re-weight from cache, no refetch
+    });
+  });
+  document.getElementById('darkspots-cb').addEventListener('change', (e) => {
+    setDarkSpots(e.target.checked);
+  });
+  document.getElementById('sts-cb').addEventListener('change', (e) => {
+    setStsClusters(e.target.checked);
+  });
   // Integrity / watchlist rows that carry a position pan the map to it.
   for (const id of ['int-detail', 'wl-detail']) {
     document.getElementById(id).addEventListener('click', (e) => {
@@ -316,6 +358,11 @@ function wireControls() {
   // Shadow-fleet score rows locate their hull when a position is known.
   document.getElementById('sf-detail').addEventListener('click', (e) => {
     const el = e.target.closest('.sf-row');
+    if (el && el.dataset.lat) map.setView([+el.dataset.lat, +el.dataset.lng], 12);
+  });
+  // Floating-storage rows locate the parked tanker.
+  document.getElementById('st-detail').addEventListener('click', (e) => {
+    const el = e.target.closest('.st-row');
     if (el && el.dataset.lat) map.setView([+el.dataset.lat, +el.dataset.lng], 12);
   });
   // A crossing row locates its vessel on the map (if still on station).
@@ -367,6 +414,175 @@ function drawAllTracks() {
     // Read the marker's latest vessel at click time (positions update on refresh).
     line.on('click', () => showTrail(m.vessel));
     line.addTo(allTracksLayer);
+  }
+}
+
+// --- Track-density heatmap --------------------------------------------------
+
+// Muted ramp that fits the greyscale theme: cool (teal) where traffic is light,
+// warming through amber to red along the busiest lanes. Keys are 0..1 fractions.
+const HEAT_GRADIENT = {
+  0.2: '#3a6b6b', 0.4: '#7fa8a0', 0.6: '#c2b87a', 0.8: '#c29a72', 1.0: '#d06b6b',
+};
+// Densify legs to ~440 m spacing so fast transits aren't under-weighted, but
+// drop legs longer than ~44 km (AIS gaps / position jumps shouldn't draw a line
+// across the chart) and cap steps so one big leg can't dominate.
+const HEAT_STEP_DEG = 0.004;
+const HEAT_MAX_LEG_DEG = 0.4;
+const HEAT_MAX_STEPS = 80;
+const HEAT_SPEED_REF = 14;  // kn that reads as a "full" fast-lane sample
+const HEAT_DWELL_REF = 3;   // kn below which a vessel counts as dwelling
+
+// Per-sample weight under the active weighting. Density = pure traffic volume;
+// Speed lights the fast transit lanes; Dwell lights where vessels sit still
+// (anchorages, loitering, STS) — the inverse map.
+function heatWeightFor(sog) {
+  if (heatWeight === 'density') return 1;
+  const s = sog == null ? null : +sog;
+  if (heatWeight === 'speed') {
+    return s == null ? 0.03 : Math.max(0.03, Math.min(1, s / HEAT_SPEED_REF));
+  }
+  return s == null ? 0 : Math.max(0, Math.min(1, 1 - s / HEAT_DWELL_REF)); // dwell
+}
+
+function setHeatmap(on) {
+  heatmapOn = on;
+  document.getElementById('heat-range').classList.toggle('on', on);
+  document.getElementById('heat-weight').classList.toggle('on', on);
+  if (on) {
+    loadHeatmap();
+  } else if (heatLayer) {
+    map.removeLayer(heatLayer);
+    heatLayer = null;
+  }
+}
+
+async function loadHeatmap() {
+  try {
+    const json = await (await fetch(`/api/tracks?hours=${heatmapHours}`)).json();
+    heatTracksData = new Map(Object.entries(json.tracks || {}));
+  } catch (_) {
+    heatTracksData = new Map();
+  }
+  drawHeatmap();
+}
+
+// Flatten every (optionally filtered) track into densified [lat, lng, weight]
+// samples. Density does the rest: overlapping lanes accumulate into hot ridges.
+function buildHeatPoints() {
+  const pts = [];
+  for (const [id, track] of heatTracksData) {
+    // Respect the filter chips for vessels currently on screen; keep history for
+    // hulls that have since left the live window (richer lane structure).
+    const m = markers.get(id);
+    if (m && !passes(m)) continue;
+    if (!track || !track.length) continue;
+    for (let i = 0; i < track.length; i++) {
+      const p = track[i];
+      pts.push([+p.lat, +p.lng, heatWeightFor(p.sog)]);
+      if (i === 0) continue;
+      const a = track[i - 1];
+      const dLat = +p.lat - +a.lat;
+      const dLng = +p.lng - +a.lng;
+      const dist = Math.hypot(dLat, dLng);
+      if (dist > HEAT_MAX_LEG_DEG || dist < HEAT_STEP_DEG) continue;
+      // Interpolated samples inherit the leg's representative speed.
+      const legSog = a.sog != null && p.sog != null ? (+a.sog + +p.sog) / 2
+        : (p.sog != null ? +p.sog : a.sog);
+      const w = heatWeightFor(legSog);
+      const steps = Math.min(Math.floor(dist / HEAT_STEP_DEG), HEAT_MAX_STEPS);
+      for (let s = 1; s < steps; s++) {
+        const f = s / steps;
+        pts.push([+a.lat + dLat * f, +a.lng + dLng * f, w]);
+      }
+    }
+  }
+  return pts;
+}
+
+function drawHeatmap() {
+  if (!heatmapOn) return;
+  const pts = buildHeatPoints();
+  if (!heatLayer) {
+    // Own pane below the ship markers (overlayPane=400) so vessels and tracks
+    // stay legible on top; click-through so it never steals map/identify clicks.
+    if (!map.getPane('heat')) {
+      map.createPane('heat');
+      map.getPane('heat').style.zIndex = 350;
+      map.getPane('heat').style.pointerEvents = 'none';
+    }
+    heatLayer = L.heatLayer(pts, {
+      radius: 14, blur: 20, max: 6, minOpacity: 0.18,
+      maxZoom: 13, gradient: HEAT_GRADIENT, pane: 'heat',
+    }).addTo(map);
+  } else {
+    heatLayer.setLatLngs(pts);
+  }
+}
+
+// --- Dark-spot + STS overlays (driven by the /api/integrity payload) --------
+
+// Both reuse the integrity summary the dashboard already polls every 30 s, so
+// they add no fetches — just plot where the signals are.
+let darkSpotsOn = false;
+let darkSpotsLayer = null;
+let stsClustersOn = false;
+let stsClustersLayer = null;
+let lastIntegrity = null;     // most recent /api/integrity payload, for the overlays
+
+function setDarkSpots(on) {
+  darkSpotsOn = on;
+  if (on) {
+    if (!darkSpotsLayer) darkSpotsLayer = L.layerGroup().addTo(map);
+    drawDarkSpots();
+  } else if (darkSpotsLayer) {
+    darkSpotsLayer.clearLayers();
+  }
+}
+
+function drawDarkSpots() {
+  if (!darkSpotsLayer) return;
+  darkSpotsLayer.clearLayers();
+  if (!darkSpotsOn || !lastIntegrity) return;
+  for (const d of lastIntegrity.dark.open) {
+    if (d.lat == null || d.lng == null) continue;
+    // Dashed red ring at the last fix before the vessel went quiet.
+    L.circleMarker([+d.lat, +d.lng], {
+      radius: 8, color: '#c28080', weight: 1.5, opacity: 0.9,
+      fillColor: '#c28080', fillOpacity: 0.12, dashArray: '3 3',
+    }).bindPopup(
+      `<h3>${esc(d.name || 'MMSI ' + d.mmsi)}</h3>` +
+      `<div class="ident">Went dark ${fmtMin(d.minutesDark)} ago · ${esc(d.type || '—')}</div>`
+    ).addTo(darkSpotsLayer);
+  }
+}
+
+function setStsClusters(on) {
+  stsClustersOn = on;
+  if (on) {
+    if (!stsClustersLayer) stsClustersLayer = L.layerGroup().addTo(map);
+    drawStsClusters();
+  } else if (stsClustersLayer) {
+    stsClustersLayer.clearLayers();
+  }
+}
+
+function drawStsClusters() {
+  if (!stsClustersLayer) return;
+  stsClustersLayer.clearLayers();
+  if (!stsClustersOn || !lastIntegrity) return;
+  for (const p of lastIntegrity.sts.active) {
+    if (p.lat == null || p.lng == null) continue;
+    const r = Math.min(15, 6 + Math.log2(1 + p.durMin / 30) * 3); // grow with episode length
+    const dist = p.distM != null ? ` · ${p.distM} m apart` : '';
+    L.circleMarker([+p.lat, +p.lng], {
+      radius: r, color: '#7fa8a0', weight: 1.5, opacity: 0.9,
+      fillColor: '#7fa8a0', fillOpacity: 0.15,
+    }).bindPopup(
+      `<h3>STS candidate</h3><div class="ident">` +
+      `${esc(p.nameA || 'MMSI ' + p.a)} ↔ ${esc(p.nameB || 'MMSI ' + p.b)}<br>` +
+      `held ${fmtMin(p.durMin)}${dist}</div>`
+    ).addTo(stsClustersLayer);
   }
 }
 
@@ -444,6 +660,7 @@ async function refresh() {
       else clearTrail();
     }
     if (allTracksOn) loadAllTracks(); // refresh the overlay with new data
+    if (heatmapOn) loadHeatmap();     // refresh the heatmap with new data
     statusEl.classList.remove('err');
     statusEl.innerHTML =
       `Updated ${new Date().toLocaleTimeString()} · ` +
@@ -481,8 +698,30 @@ async function refreshCrossings() {
       ? flags.map((t) => `<span class="flag warn">${t}</span>`).join('')
       : '<span class="sub">none in window</span>';
 
+    renderTransitDist(s.transit);
     renderPassages(s.passages || []);
   } catch (_) { /* leave previous values */ }
+}
+
+// Transit-time histogram + percentiles — a widening upper tail flags congestion.
+function renderTransitDist(t) {
+  const el = document.getElementById('tx-dist');
+  const note = document.getElementById('tx-dist-note');
+  if (!el) return;
+  if (!t || !t.n) {
+    el.innerHTML = '';
+    if (note) note.textContent = 'no completed passages in window';
+    return;
+  }
+  const max = Math.max(1, ...t.histogram.map((b) => b.count));
+  const medBin = t.histogram.findIndex((b) => t.p50 != null && t.p50 >= b.from && t.p50 < b.to);
+  el.innerHTML = t.histogram.map((b, i) => {
+    const h = Math.max(2, Math.round((b.count / max) * 44));
+    const cls = i === medBin ? 'bar p50' : 'bar';
+    return `<span class="${cls}" style="height:${h}px" title="${b.from}–${b.to} min · ${b.count}"></span>`;
+  }).join('');
+  if (note) note.textContent =
+    `p10 ${fmtMin(t.p10)} · p50 ${fmtMin(t.p50)} · p90 ${fmtMin(t.p90)} · n=${t.n}`;
 }
 
 // The individual vessels behind the cordon totals (newest first). Direction
@@ -528,6 +767,134 @@ async function refreshFlow() {
   } catch (_) { /* leave previous values */ }
 }
 
+// --- Gulf activity overview (top-line counts + daily crossings) -------------
+
+async function refreshActivity() {
+  try {
+    renderActivity(await (await fetch('/api/activity?days=14')).json());
+  } catch (_) { /* leave previous values */ }
+}
+
+function renderActivity(a) {
+  const set = (id, v) => { const e = document.getElementById(id); if (e) e.textContent = v; };
+  if (!a || a.error) return;
+  set('ga-ships', a.present.ships);
+  set('ga-tankers', a.present.tankers);
+  const series = a.series || [];
+  const last = series[series.length - 1];
+  set('ga-today', last ? last.inbound + last.outbound : 0);
+  const el = document.getElementById('ga-bars');
+  if (!el) return;
+  if (!series.length) { el.innerHTML = ''; set('ga-note', ''); return; }
+  const H = 56;
+  const max = Math.max(1, ...series.map((s) => s.inbound + s.outbound));
+  const md = (x) => new Date(x.date).toISOString().slice(5, 10);
+  el.innerHTML = series.map((s) => {
+    const o = Math.round((s.outbound / max) * H);
+    const i = Math.round((s.inbound / max) * H);
+    return `<span class="col" title="${md(s)} · ${s.outbound} out / ${s.inbound} in">` +
+      `<span class="in" style="height:${i}px"></span>` +
+      `<span class="out" style="height:${o}px"></span></span>`;
+  }).join('');
+  set('ga-note', `completed passages/day · outbound + inbound · ${md(series[0])}–${md(last)}`);
+}
+
+// --- Export run-rate (time series + z-score) --------------------------------
+
+async function refreshFlowSeries() {
+  try {
+    const f = await (await fetch('/api/flowseries?days=14&bucket=day')).json();
+    renderRunRate(f);
+  } catch (_) { /* leave previous values */ }
+}
+
+function renderRunRate(f) {
+  const spark = document.getElementById('rr-spark');
+  const note = document.getElementById('rr-note');
+  const set = (id, v) => { const e = document.getElementById(id); if (e) e.textContent = v; };
+  if (!f || !f.series || !f.series.length) {
+    if (spark) spark.innerHTML = '';
+    set('rr-latest', '—'); set('rr-note', ''); return;
+  }
+  const vals = f.series.map((s) => s.outbound);
+  const max = Math.max(1, ...vals);
+  const W = 240, H = 44, n = vals.length;
+  const X = (i) => (n > 1 ? (i / (n - 1)) * W : 0);
+  const Y = (v) => H - (v / max) * (H - 4) - 2;
+  const line = vals.map((v, i) => `${i ? 'L' : 'M'}${X(i).toFixed(1)},${Y(v).toFixed(1)}`).join(' ');
+  const area = `M0,${H} ${vals.map((v, i) => `L${X(i).toFixed(1)},${Y(v).toFixed(1)}`).join(' ')} L${W},${H} Z`;
+  const st = f.outbound || {};
+  const hot = Math.abs(st.z || 0) >= 2;
+  spark.innerHTML =
+    `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">` +
+    `<path class="area" d="${area}"/><path class="line" d="${line}"/>` +
+    `<circle class="last${hot ? ' hot' : ''}" cx="${X(n - 1).toFixed(1)}" cy="${Y(vals[n - 1]).toFixed(1)}" r="2.5"/>` +
+    `</svg>`;
+  set('rr-latest', fmtBbl(st.latest));
+  const z = st.z || 0;
+  set('rr-note', `trailing avg ${fmtBbl(st.trail)} bbl/day · z=${z > 0 ? '+' : ''}${z}${hot ? ' · anomaly' : ''}`);
+}
+
+// --- Floating storage / anchorage queues ------------------------------------
+
+async function refreshStorage() {
+  try {
+    renderStorage(await (await fetch('/api/storage?hours=24')).json());
+  } catch (_) { /* leave previous values */ }
+}
+
+function renderStorage(s) {
+  const set = (id, v) => { const e = document.getElementById(id); if (e) e.textContent = v; };
+  if (!s || s.error) return;
+  set('st-parked', s.parked);
+  set('st-laden', s.ladenCount);
+  set('st-bbl', fmtBbl(s.barrels));
+  const el = document.getElementById('st-detail');
+  if (!s.vessels || !s.vessels.length) {
+    el.innerHTML = '<span class="sub">no parked tankers in window</span>';
+  } else {
+    el.innerHTML = s.vessels.slice(0, 8).map((v) => {
+      const loc = (v.lat != null && v.lng != null) ? ` data-lat="${v.lat}" data-lng="${v.lng}"` : '';
+      const laden = v.barrels != null ? `<span class="st-badge">${fmtBbl(v.barrels)} bbl</span>` : '';
+      return `<div class="st-row"${loc}><span class="st-name">${vesselLabel(v)}</span>${laden}` +
+        `<span class="st-meta">${v.parkedHours}h · ${v.spanKm}km</span></div>`;
+    }).join('');
+  }
+  const q = (s.queues || []).length;
+  set('st-note',
+    `${s.parked} parked tanker${s.parked === 1 ? '' : 's'}` +
+    (q ? ` · ${q} queue${q > 1 ? 's' : ''} (≥2 clustered)` : '') +
+    ` · laden via draught where known · estimate`);
+}
+
+// --- Outbound destinations (origin-destination) -----------------------------
+
+async function refreshDestinations() {
+  try {
+    renderDestinations(await (await fetch('/api/destinations')).json());
+  } catch (_) { /* leave previous values */ }
+}
+
+function renderDestinations(d) {
+  const el = document.getElementById('dest-detail');
+  const note = document.getElementById('dest-note');
+  if (!el) return;
+  if (!d || !d.total) {
+    el.innerHTML = '<span class="sub">no declared destinations on station</span>';
+    if (note) note.textContent = '';
+    return;
+  }
+  const max = Math.max(1, ...d.regions.map((r) => r.count));
+  el.innerHTML = d.regions.map((r) => {
+    const pct = Math.round((r.count / max) * 100);
+    return `<div class="reg-row"><span class="reg-name">${esc(r.region)}</span>` +
+      `<span class="reg-bar"><i style="width:${pct}%"></i></span>` +
+      `<span class="reg-cnt">${r.count}</span></div>`;
+  }).join('');
+  if (note) note.textContent =
+    `${d.total} tanker${d.total === 1 ? '' : 's'} with a declared destination · AIS dest field, noisy`;
+}
+
 // --- Integrity layer (Phase 4) ----------------------------------------------
 
 // Thin monochrome line glyphs (inherit currentColor) — no emoji.
@@ -558,6 +925,7 @@ async function refreshIntegrity() {
   try {
     const s = await (await fetch('/api/integrity?hours=24')).json();
     if (s.error) return;
+    lastIntegrity = s;
     const set = (id, v) => { document.getElementById(id).textContent = v; };
     set('int-dark', s.dark.openCount);
     set('int-sts', s.sts.count);
@@ -598,6 +966,10 @@ async function refreshIntegrity() {
     // Row 2 — sanctions exposure, fed from the same payload (no extra fetch).
     renderWatchlist(s.watchlist);
     renderShadowFleet(s.shadowFleet);
+
+    // Map overlays driven by the same payload (no extra fetch).
+    if (darkSpotsOn) drawDarkSpots();
+    if (stsClustersOn) drawStsClusters();
   } catch (_) { /* leave previous values */ }
 }
 
@@ -753,6 +1125,7 @@ function applyFilters() {
     if (c) c.textContent = counts[chip.dataset.dim][chip.dataset.cat] || 0;
   });
   if (allTracksOn) drawAllTracks(); // re-filter / re-colour overlay from cache
+  if (heatmapOn) drawHeatmap();     // re-filter heatmap from cache (no refetch)
 }
 
 // --- Trails -----------------------------------------------------------------

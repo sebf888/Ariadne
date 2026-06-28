@@ -16,6 +16,8 @@
     integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
     crossorigin=""
   ></script>
+  <!-- Heatmap overlay (track density). simpleheat-based, canvas, fast. -->
+  <script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
 
   <style>
     :root {
@@ -156,13 +158,18 @@
     .seg button:hover { color: var(--text); }
     .seg button.active { color: var(--accent); background: var(--accent-dim); }
 
-    #alltracks {
+    .overlay-toggle {
       display: flex; align-items: center; gap: 8px; margin-top: 12px;
       font-family: var(--mono); font-size: 11px; letter-spacing: 0.3px;
       color: var(--text); cursor: pointer; user-select: none;
     }
-    #alltracks input { accent-color: var(--accent); cursor: pointer; }
-    #alltracks .sub { color: var(--faint); }
+    .overlay-toggle input { accent-color: var(--accent); cursor: pointer; }
+    .overlay-toggle .sub { color: var(--faint); }
+
+    /* Heatmap timeframe / weighting — compact segmented controls, shown only on. */
+    .seg.mini button { padding: 4px 5px; font-size: 10px; }
+    #heat-range, #heat-weight { display: none; margin: 6px 0 0 22px; }
+    #heat-range.on, #heat-weight.on { display: flex; }
 
     /* Filters (legend doubles as the live key + per-category filter) */
     #legend-groups .fgroup { margin-bottom: 14px; }
@@ -315,6 +322,39 @@
       border: 1px solid rgba(192, 133, 133, 0.5); padding: 0 4px; flex: none;
     }
 
+    /* Day-by-day crossings — stacked bars (outbound + inbound). */
+    .daybars { display: flex; align-items: flex-end; gap: 3px; height: 60px; margin: 12px 0 4px; }
+    .daybars .col { flex: 1; display: flex; flex-direction: column; justify-content: flex-end; min-height: 2px; }
+    .daybars .col .out { background: var(--accent); }
+    .daybars .col .in { background: #7f9bb5; }
+
+    /* Transit-time histogram — fixed-width bars, monochrome. */
+    .dist { display: flex; align-items: flex-end; gap: 2px; height: 46px; margin: 8px 0 2px; }
+    .dist .bar { flex: 1; background: var(--accent); opacity: 0.5; min-height: 2px; }
+    .dist .bar.p50 { background: #c2b87a; opacity: 0.9; }
+
+    /* Export run-rate sparkline. */
+    .spark { height: 44px; margin: 10px 0 4px; }
+    .spark svg { display: block; width: 100%; height: 44px; }
+    .spark .area { fill: var(--accent-dim); }
+    .spark .line { fill: none; stroke: var(--accent); stroke-width: 1.5; }
+    .spark .last { fill: var(--accent); }
+    .spark .last.hot { fill: #c2b87a; }
+
+    /* Region / list rows shared by destinations + floating storage. */
+    .reg-row { display: flex; align-items: center; gap: 9px; padding: 5px 0; border-top: 1px solid var(--line-soft); font-size: 12px; }
+    .reg-row:first-child { border-top: none; }
+    .reg-name { width: 92px; flex: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .reg-bar { flex: 1; height: 4px; background: var(--line); position: relative; }
+    .reg-bar > i { position: absolute; left: 0; top: 0; bottom: 0; background: var(--accent); }
+    .reg-cnt { font-family: var(--mono); font-size: 11px; color: var(--muted); width: 26px; flex: none; text-align: right; }
+    .st-row { display: flex; align-items: center; gap: 9px; padding: 5px 0; border-top: 1px solid var(--line-soft); font-size: 12px; cursor: pointer; }
+    .st-row:first-child { border-top: none; }
+    .st-row:hover { color: var(--accent); }
+    .st-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .st-meta { font-family: var(--mono); font-size: 9px; letter-spacing: 0.3px; color: var(--faint); flex: none; text-transform: uppercase; }
+    .st-badge { font-family: var(--mono); font-size: 9px; color: #c2b87a; flex: none; }
+
     .ident .ident-h {
       font-family: var(--mono); font-size: 10px; letter-spacing: 0.8px; text-transform: uppercase;
       color: var(--accent); margin-bottom: 6px;
@@ -400,9 +440,33 @@
             <button data-mode="age">Age</button>
             <button data-mode="status">Activity</button>
           </div>
-          <label id="alltracks">
+          <label id="alltracks" class="overlay-toggle">
             <input type="checkbox" id="alltracks-cb" />
             Show all tracks <span class="sub">(filtered)</span>
+          </label>
+          <label id="heatmap" class="overlay-toggle">
+            <input type="checkbox" id="heatmap-cb" />
+            Track heatmap <span class="sub">(paths)</span>
+          </label>
+          <div id="heat-range" class="seg mini" role="group" aria-label="Heatmap timeframe">
+            <button data-hours="6">6h</button>
+            <button data-hours="12">12h</button>
+            <button data-hours="24" class="active">24h</button>
+            <button data-hours="48">48h</button>
+            <button data-hours="72">72h</button>
+          </div>
+          <div id="heat-weight" class="seg mini" role="group" aria-label="Heatmap weighting">
+            <button data-weight="density" class="active">Density</button>
+            <button data-weight="speed">Speed</button>
+            <button data-weight="dwell">Dwell</button>
+          </div>
+          <label id="darkspots" class="overlay-toggle">
+            <input type="checkbox" id="darkspots-cb" />
+            Dark spots <span class="sub">(AIS gaps)</span>
+          </label>
+          <label id="sts" class="overlay-toggle">
+            <input type="checkbox" id="sts-cb" />
+            STS clusters <span class="sub">(transfers)</span>
           </label>
         </div>
 
@@ -427,7 +491,7 @@
 
     <div id="dash-head">
       <span class="t">Analytics</span>
-      <span class="s">last 24 h · cordon, flow &amp; integrity</span>
+      <span class="s">cordon · flow &amp; run-rate · storage · destinations · integrity</span>
     </div>
 
     <div id="dash">
@@ -441,6 +505,17 @@
           <div class="kpi"><div class="v" id="fleet-cargo">—</div><div class="l">Cargo</div></div>
         </div>
         <div class="meta" id="fleet-showing"></div>
+      </div>
+
+      <div class="cell" id="cell-activity">
+        <h2>Gulf activity · 14 d</h2>
+        <div class="kpis">
+          <div class="kpi"><div class="v" id="ga-ships">—</div><div class="l">Ships present</div></div>
+          <div class="kpi"><div class="v" id="ga-tankers">—</div><div class="l">Tankers</div></div>
+          <div class="kpi"><div class="v" id="ga-today">—</div><div class="l">Crossings today</div></div>
+        </div>
+        <div id="ga-bars" class="daybars"></div>
+        <div class="meta" id="ga-note"></div>
       </div>
 
       <div class="cell" id="cell-cordon">
@@ -459,6 +534,9 @@
         </div>
         <div class="meta" id="tx-median"></div>
         <div class="meta" id="tx-gross"></div>
+        <div class="meta px-lbl">Transit-time distribution</div>
+        <div id="tx-dist" class="dist"></div>
+        <div class="meta" id="tx-dist-note"></div>
         <div class="meta px-lbl">Recent crossings</div>
         <div id="tx-list" class="px-list"></div>
       </div>
@@ -479,6 +557,36 @@
         </div>
         <div class="meta" id="flow-n"></div>
         <div class="meta" id="flow-note"></div>
+      </div>
+
+      <div class="cell" id="cell-runrate">
+        <h2>Export run-rate · 14 d <span class="est">Trend</span></h2>
+        <div class="sub">Outbound tanker barrels per day, with a z-score of today vs the trailing window.</div>
+        <div id="rr-spark" class="spark"></div>
+        <div class="row">
+          <span class="dir">Latest day</span>
+          <span class="big" id="rr-latest">—</span>
+          <span class="sub">bbl</span>
+        </div>
+        <div class="meta" id="rr-note"></div>
+      </div>
+
+      <div class="cell" id="cell-storage">
+        <h2>Floating storage &amp; queues · 24 h <span class="est">Estimate</span></h2>
+        <div class="kpis">
+          <div class="kpi"><div class="v" id="st-parked">—</div><div class="l">Parked tankers</div></div>
+          <div class="kpi"><div class="v" id="st-laden">—</div><div class="l">Laden</div></div>
+          <div class="kpi"><div class="v" id="st-bbl">—</div><div class="l">Stored bbl</div></div>
+        </div>
+        <div id="st-detail"></div>
+        <div class="meta" id="st-note"></div>
+      </div>
+
+      <div class="cell" id="cell-dest">
+        <h2>Outbound destinations <span class="est">AIS-stated</span></h2>
+        <div class="sub">Latest declared destination per tanker on station, by market region.</div>
+        <div id="dest-detail"></div>
+        <div class="meta" id="dest-note"></div>
       </div>
 
       <div class="cell" id="cell-anomalies">
