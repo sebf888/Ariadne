@@ -49,7 +49,7 @@ async function handleAllTracks(req, res) {
     const rows = await db.getAllTracks(cfg.LIVE_WINDOW_MIN, hours);
     const tracks = {};
     for (const r of rows) {
-      (tracks[r.mmsi] ||= []).push({ lat: r.lat, lng: r.lng, ts: r.ts });
+      (tracks[r.mmsi] ||= []).push({ lat: r.lat, lng: r.lng, ts: r.ts, sog: r.sog });
     }
     sendJson(res, 200, { hours, tracks });
   } catch (e) {
@@ -78,6 +78,51 @@ async function handleFlow(req, res) {
     sendJson(res, 200, await db.getFlowSummary(windowHours(req), cfg.FLOW));
   } catch (e) {
     console.error('[flow] query error:', e.message);
+    sendJson(res, 503, { error: e.message });
+  }
+}
+
+async function handleActivity(req, res) {
+  const params = new URL(req.url, 'http://localhost').searchParams;
+  let days = parseInt(params.get('days'), 10);
+  if (!Number.isFinite(days) || days <= 0) days = 14;
+  days = Math.min(days, 60);
+  try {
+    sendJson(res, 200, await db.getActivity(cfg.LIVE_WINDOW_MIN, days));
+  } catch (e) {
+    console.error('[activity] query error:', e.message);
+    sendJson(res, 503, { error: e.message });
+  }
+}
+
+async function handleStorage(req, res) {
+  try {
+    sendJson(res, 200, await db.getFloatingStorage(cfg.LIVE_WINDOW_MIN, windowHours(req), cfg.STORAGE, cfg.FLOW));
+  } catch (e) {
+    console.error('[storage] query error:', e.message);
+    sendJson(res, 503, { error: e.message });
+  }
+}
+
+async function handleFlowSeries(req, res) {
+  const params = new URL(req.url, 'http://localhost').searchParams;
+  let days = parseInt(params.get('days'), 10);
+  if (!Number.isFinite(days) || days <= 0) days = 14;
+  days = Math.min(days, 60);
+  const bucket = params.get('bucket') === 'hour' ? 'hour' : 'day';
+  try {
+    sendJson(res, 200, await db.getFlowSeries(days, bucket, cfg.FLOW));
+  } catch (e) {
+    console.error('[flowseries] query error:', e.message);
+    sendJson(res, 503, { error: e.message });
+  }
+}
+
+async function handleDestinations(req, res) {
+  try {
+    sendJson(res, 200, await db.getOutboundDestinations(cfg.LIVE_WINDOW_MIN));
+  } catch (e) {
+    console.error('[destinations] query error:', e.message);
     sendJson(res, 503, { error: e.message });
   }
 }
@@ -149,6 +194,10 @@ const server = http.createServer((req, res) => {
   if (url === '/api/tracks') return handleAllTracks(req, res);
   if (url === '/api/crossings') return handleCrossings(req, res);
   if (url === '/api/flow') return handleFlow(req, res);
+  if (url === '/api/activity') return handleActivity(req, res);
+  if (url === '/api/flowseries') return handleFlowSeries(req, res);
+  if (url === '/api/storage') return handleStorage(req, res);
+  if (url === '/api/destinations') return handleDestinations(req, res);
   if (url === '/api/integrity') return handleIntegrity(req, res);
   if (url === '/api/config') {
     return sendJson(res, 200, {
