@@ -206,6 +206,17 @@ const activeFilters = {};
 for (const dim of DIM_KEYS) activeFilters[dim] = new Set(DIMENSIONS[dim].categories.map((c) => c.key));
 let searchQuery = '';
 
+// Dashboard timeframes: one window drives the snapshot cells (cordon, flow,
+// integrity, storage, anomalies); trendDays drives the day-by-day charts
+// (activity, run-rate). Both are user-selectable in the Analytics header.
+let dashHours = 24;
+let trendDays = 14;
+function fmtWin(h) { return (h >= 72 && h % 24 === 0) ? `${h / 24} d` : `${h} h`; }
+function setDashLabels() {
+  document.querySelectorAll('.win').forEach((e) => { e.textContent = fmtWin(dashHours); });
+  document.querySelectorAll('.trend').forEach((e) => { e.textContent = `${trendDays} d`; });
+}
+
 // Trail state: one selected vessel's track at a time.
 let selectedMmsi = null;
 let trailLayer = null;
@@ -285,6 +296,7 @@ async function init() {
 
   buildFilters();
   wireControls();
+  setDashLabels();
   setMode('type');
   refresh();
   refreshActivity();
@@ -340,6 +352,25 @@ function wireControls() {
       document.querySelectorAll('#heat-weight button').forEach((x) =>
         x.classList.toggle('active', x === b));
       if (heatmapOn) drawHeatmap(); // re-weight from cache, no refetch
+    });
+  });
+  // Global dashboard timeframe controls.
+  document.querySelectorAll('#dash-window button').forEach((b) => {
+    b.addEventListener('click', () => {
+      dashHours = Number(b.dataset.hours);
+      document.querySelectorAll('#dash-window button').forEach((x) =>
+        x.classList.toggle('active', x === b));
+      setDashLabels();
+      refreshCrossings(); refreshFlow(); refreshIntegrity(); refreshStorage();
+    });
+  });
+  document.querySelectorAll('#dash-trend button').forEach((b) => {
+    b.addEventListener('click', () => {
+      trendDays = Number(b.dataset.days);
+      document.querySelectorAll('#dash-trend button').forEach((x) =>
+        x.classList.toggle('active', x === b));
+      setDashLabels();
+      refreshActivity(); refreshFlowSeries();
     });
   });
   document.getElementById('darkspots-cb').addEventListener('change', (e) => {
@@ -679,7 +710,7 @@ function fmtMin(m) {
 
 async function refreshCrossings() {
   try {
-    const s = await (await fetch('/api/crossings?hours=24')).json();
+    const s = await (await fetch(`/api/crossings?hours=${dashHours}`)).json();
     const set = (id, v) => { document.getElementById(id).textContent = v; };
     const c = s.completed;
     set('tx-out', c.outbound.total);
@@ -758,7 +789,7 @@ function fmtBbl(n) {
 
 async function refreshFlow() {
   try {
-    const f = await (await fetch('/api/flow?hours=24')).json();
+    const f = await (await fetch(`/api/flow?hours=${dashHours}`)).json();
     const set = (id, v) => { document.getElementById(id).textContent = v; };
     set('flow-out-bbl', fmtBbl(f.outbound.barrels));
     set('flow-in-bbl', fmtBbl(f.inbound.barrels));
@@ -771,7 +802,7 @@ async function refreshFlow() {
 
 async function refreshActivity() {
   try {
-    renderActivity(await (await fetch('/api/activity?days=14')).json());
+    renderActivity(await (await fetch(`/api/activity?days=${trendDays}`)).json());
   } catch (_) { /* leave previous values */ }
 }
 
@@ -803,7 +834,7 @@ function renderActivity(a) {
 
 async function refreshFlowSeries() {
   try {
-    const f = await (await fetch('/api/flowseries?days=14&bucket=day')).json();
+    const f = await (await fetch(`/api/flowseries?days=${trendDays}&bucket=day`)).json();
     renderRunRate(f);
   } catch (_) { /* leave previous values */ }
 }
@@ -839,7 +870,7 @@ function renderRunRate(f) {
 
 async function refreshStorage() {
   try {
-    renderStorage(await (await fetch('/api/storage?hours=24')).json());
+    renderStorage(await (await fetch(`/api/storage?hours=${dashHours}`)).json());
   } catch (_) { /* leave previous values */ }
 }
 
@@ -923,7 +954,7 @@ function intRow(icon, html, lat, lng) {
 
 async function refreshIntegrity() {
   try {
-    const s = await (await fetch('/api/integrity?hours=24')).json();
+    const s = await (await fetch(`/api/integrity?hours=${dashHours}`)).json();
     if (s.error) return;
     lastIntegrity = s;
     const set = (id, v) => { document.getElementById(id).textContent = v; };
