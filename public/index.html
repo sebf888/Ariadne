@@ -219,11 +219,16 @@
     /* ---- Analytics grid (scroll target) ---- */
     #dash-head {
       padding: 0 28px; margin: 18px 0 0;
-      display: flex; align-items: baseline; gap: 14px;
+      display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
       border-top: 1px solid var(--line-soft); padding-top: 26px;
     }
     #dash-head .t { font-family: var(--mono); font-size: 11px; letter-spacing: 2px; text-transform: uppercase; color: var(--text); }
     #dash-head .s { font-family: var(--mono); font-size: 10px; letter-spacing: 0.8px; color: var(--faint); }
+    #dash-controls { margin-left: auto; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+    #dash-controls .ctl-lbl {
+      font-family: var(--mono); font-size: 9px; letter-spacing: 1px;
+      text-transform: uppercase; color: var(--faint);
+    }
 
     #dash {
       display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
@@ -492,6 +497,21 @@
     <div id="dash-head">
       <span class="t">Analytics</span>
       <span class="s">cordon · flow &amp; run-rate · storage · destinations · integrity</span>
+      <div id="dash-controls">
+        <span class="ctl-lbl">Window</span>
+        <div id="dash-window" class="seg mini" role="group" aria-label="Snapshot window">
+          <button data-hours="6">6h</button>
+          <button data-hours="24" class="active">24h</button>
+          <button data-hours="48">48h</button>
+          <button data-hours="168">7d</button>
+        </div>
+        <span class="ctl-lbl">Trend</span>
+        <div id="dash-trend" class="seg mini" role="group" aria-label="Trend length">
+          <button data-days="7">7d</button>
+          <button data-days="14" class="active">14d</button>
+          <button data-days="30">30d</button>
+        </div>
+      </div>
     </div>
 
     <div id="dash">
@@ -508,7 +528,7 @@
       </div>
 
       <div class="cell" id="cell-activity">
-        <h2>Gulf activity · 14 d</h2>
+        <h2>Gulf activity · <span class="trend">14 d</span></h2>
         <div class="kpis">
           <div class="kpi"><div class="v" id="ga-ships">—</div><div class="l">Ships present</div></div>
           <div class="kpi"><div class="v" id="ga-tankers">—</div><div class="l">Tankers</div></div>
@@ -519,7 +539,7 @@
       </div>
 
       <div class="cell" id="cell-cordon">
-        <h2>Cordon — completed passages · 24 h</h2>
+        <h2>Cordon — completed passages · <span class="win">24 h</span></h2>
         <div class="row">
           <span class="arrow">→</span>
           <span class="dir">Outbound <span class="sub">(exports)</span></span>
@@ -542,7 +562,7 @@
       </div>
 
       <div class="cell" id="cell-flow">
-        <h2>Estimated crude flow · 24 h <span class="est">Estimate</span></h2>
+        <h2>Estimated crude flow · <span class="win">24 h</span> <span class="est">Estimate</span></h2>
         <div class="row">
           <span class="arrow">→</span>
           <span class="dir">Outbound exports</span>
@@ -560,7 +580,7 @@
       </div>
 
       <div class="cell" id="cell-runrate">
-        <h2>Export run-rate · 14 d <span class="est">Trend</span></h2>
+        <h2>Export run-rate · <span class="trend">14 d</span> <span class="est">Trend</span></h2>
         <div class="sub">Outbound tanker barrels per day, with a z-score of today vs the trailing window.</div>
         <div id="rr-spark" class="spark"></div>
         <div class="row">
@@ -572,7 +592,7 @@
       </div>
 
       <div class="cell" id="cell-storage">
-        <h2>Floating storage &amp; queues · 24 h <span class="est">Estimate</span></h2>
+        <h2>Floating storage &amp; queues · <span class="win">24 h</span> <span class="est">Estimate</span></h2>
         <div class="kpis">
           <div class="kpi"><div class="v" id="st-parked">—</div><div class="l">Parked tankers</div></div>
           <div class="kpi"><div class="v" id="st-laden">—</div><div class="l">Laden</div></div>
@@ -590,13 +610,13 @@
       </div>
 
       <div class="cell" id="cell-anomalies">
-        <h2>Anomalies · 24 h</h2>
+        <h2>Anomalies · <span class="win">24 h</span></h2>
         <div class="sub">Cordon integrity signals (loitering / U-turns / dark candidates).</div>
         <div class="flags" id="tx-flags"></div>
       </div>
 
       <div class="cell" id="cell-integrity">
-        <h2>Integrity layer · 24 h <span class="est">Signals</span></h2>
+        <h2>Integrity layer · <span class="win">24 h</span> <span class="est">Signals</span></h2>
         <div class="kpis">
           <div class="kpi"><div class="v" id="int-dark">—</div><div class="l">Dark ships</div></div>
           <div class="kpi"><div class="v" id="int-sts">—</div><div class="l">STS pairs</div></div>
@@ -619,7 +639,7 @@
       </div>
 
       <div class="cell" id="cell-shadow">
-        <h2>Shadow-fleet watch · 24 h <span class="est">Score</span></h2>
+        <h2>Shadow-fleet watch · <span class="win">24 h</span> <span class="est">Score</span></h2>
         <div class="sub">Hulls ranked by composite risk fused from the integrity signals (reflag · IMO-swap · dark · STS · identity).</div>
         <div id="sf-detail"></div>
         <div class="meta" id="sf-note"></div>
