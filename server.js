@@ -170,6 +170,7 @@ async function handleIngest(req, res) {
 function serveStatic(req, res) {
   let urlPath = req.url.split('?')[0];
   if (urlPath === '/') urlPath = '/index.html';
+  else if (!path.extname(urlPath)) urlPath = urlPath.replace(/\/$/, '') + '/index.html';
   const filePath = path.join(__dirname, 'public', path.normalize(urlPath));
   if (!filePath.startsWith(path.join(__dirname, 'public'))) {
     res.writeHead(403);

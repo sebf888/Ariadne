@@ -3,650 +3,226 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Ariadne — Strait of Hormuz</title>
+  <title>QueensGate — Infrastructure Research</title>
+  <meta name="description" content="QueensGate Research — infrastructure research group." />
 
-  <link
-    rel="stylesheet"
-    href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
-    integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
-    crossorigin=""
-  />
-  <script
-    src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
-    integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
-    crossorigin=""
-  ></script>
-  <!-- Heatmap overlay (track density). simpleheat-based, canvas, fast. -->
-  <script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Gilda+Display&display=swap" rel="stylesheet">
 
   <style>
     :root {
-      /* Greyscale, neutral. One restrained accent only. */
-      --bg:          #161616;
-      --bg-elev:     #1b1b1b;
-      --line:        rgba(255, 255, 255, 0.12);
-      --line-soft:   rgba(255, 255, 255, 0.07);
-      --line-strong: rgba(255, 255, 255, 0.26);
-      --text:        #e6e6e6;
-      --muted:       #8a8a8a;
-      --faint:       #5c5c5c;
-      --accent:      #93b8b2;                 /* dusty teal — active states + key figures */
-      --accent-dim:  rgba(147, 184, 178, 0.14);
+      --void:      #ffffff;
+      --void-2:    #eeeeec;
+      --hairline:  rgba(255, 255, 255, 0.10);
+      --paper:     #ededea;
+      --faint:     #6b6b66;
+      --accent:    #93b8b2;
 
-      --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
-      --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      --display: "Gilda Display", Georgia, "Times New Roman", serif;
+      --sans:    "Helvetica Neue", Helvetica, Arial, sans-serif;
+      --mono:    ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
     }
 
     * { box-sizing: border-box; }
-    html, body { height: 100%; margin: 0; }
+    html, body { margin: 0; padding: 0; }
     body {
+      background: var(--void);
+      color: var(--paper);
       font-family: var(--sans);
-      background: var(--bg);
-      color: var(--text);
       -webkit-font-smoothing: antialiased;
     }
+    a { text-decoration: none; color: inherit; }
 
-    /* Shared technical-label treatment. */
-    .label {
-      font-family: var(--mono);
-      font-size: 10px;
-      letter-spacing: 1.4px;
-      text-transform: uppercase;
-      color: var(--muted);
+    /* ---- Nav / masthead ---- */
+    .nav {
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      background: #ffffff;
+      padding: clamp(20px, 3.6vw, 34px) 24px clamp(22px, 3.8vw, 36px);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+    }
+    .wordmark {
+      display: inline-flex;
+      flex-direction: column;
+      align-items: center;
+      animation: intro-rise 2.4s cubic-bezier(.22, 1, .36, 1) both;
+    }
+    @keyframes intro-rise {
+      0%   { transform: translateY(calc(50vh - 90px)); }
+      42%  { transform: translateY(calc(50vh - 90px)); } /* brief hold, centered */
+      100% { transform: translateY(0); }
+    }
+    .logo {
+      font-family: var(--display);
+      font-weight: 400;
+      font-size: clamp(2.25rem, 3.472vw, 3.75rem); /* = 60px at a 1728px (16" MacBook) viewport */
+      line-height: 1;
+      color: #0a0a0a;
+    }
+    .tagline {
+      margin-top: -0.1em;
+      font-family: var(--sans);
+      font-weight: 300;
+      font-size: clamp(0.8rem, 1.02vw, 1.1rem); /* ~ 18px at a 1728px (16" MacBook) viewport */
+      letter-spacing: -0.02em;
+      color: #0a0a0a;
     }
 
-    /* ---- Shell: landing stage (map + surrounding controls), then analytics ---- */
-    #app { display: flex; flex-direction: column; min-height: 100%; }
-
-    #stage {
-      position: relative;
-      height: 100vh;
-      min-height: 560px;
+    /* ---- Grid ---- */
+    .grid {
       display: grid;
-      grid-template-columns: minmax(200px, 250px) 1fr minmax(200px, 250px);
-      grid-template-rows: auto 1fr;
-      grid-template-areas:
-        "brand brand brand"
-        "left  map   right";
-      gap: 22px;
-      padding: 26px 28px 40px;
+      grid-template-columns: repeat(12, 1fr);
+      gap: 2px;
+      background: var(--void);
+      padding: 2px;
+      opacity: 0;
+      animation: content-reveal .9s ease 1.9s forwards;
+    }
+    @keyframes content-reveal {
+      from { opacity: 0; }
+      to   { opacity: 1; }
     }
 
-    /* ---- Brand / search (top, centered) ---- */
-    #brand { grid-area: brand; text-align: center; padding-top: 4px; }
-    #brand h1 {
-      margin: 0;
-      font-family: var(--mono);
-      font-size: 15px;
-      font-weight: 500;
-      letter-spacing: 6px;
-      text-transform: uppercase;
-      color: var(--text);
+    @media (prefers-reduced-motion: reduce) {
+      .wordmark { animation: none; }
+      .grid { animation: none; opacity: 1; }
     }
-    #brand .sub {
-      margin-top: 6px;
+    .tile {
+      position: relative;
+      display: block;
+      overflow: hidden;
+      grid-column: span 6;
+      aspect-ratio: 5 / 4;
+      background: var(--void-2);
+      cursor: pointer;
+    }
+    .tile.row2  { grid-column: span 4; aspect-ratio: 3 / 2; }
+    .tile.soon  { cursor: default; }
+
+    .tile-bg {
+      position: absolute;
+      inset: 0;
+      background-position: center;
+      background-size: cover;
+      background-repeat: no-repeat;
+      transform: scale(1);
+      transition: transform .6s cubic-bezier(.22, 1, .36, 1), filter .6s ease;
+    }
+    .tile:not(.soon):hover .tile-bg { transform: scale(1.035); filter: brightness(1.06); }
+    .tile.soon .tile-bg { filter: grayscale(1) brightness(0.9); }
+
+    /* Ariadne tile — fallback fill until a thumbnail is dropped in, see README note. */
+    .tile.ariadne .tile-bg {
+      background-color: #0c1a1c;
+      background-image: url("/assets/thumbnails/ariadne.jpeg");
+    }
+
+    .tile-overlay {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: flex-start;
+      padding-left: clamp(20px, 4vw, 48px);
+      padding-right: clamp(20px, 4vw, 48px);
+    }
+    .tile-copy { display: flex; flex-direction: column; gap: 8px; }
+    .tile-cat {
       font-family: var(--mono);
       font-size: 10px;
       letter-spacing: 1.6px;
       text-transform: uppercase;
-      color: var(--faint);
+      color: rgba(237, 237, 234, 0.62);
     }
-    #search {
-      margin: 14px auto 0;
-      display: block;
-      width: min(360px, 80%);
-      padding: 8px 12px;
-      background: transparent;
-      border: 1px solid var(--line);
-      color: var(--text);
-      font-family: var(--mono);
-      font-size: 12px;
-      letter-spacing: 0.3px;
-      text-align: center;
+    .tile-title {
+      font-family: var(--sans);
+      font-weight: 500;
+      font-size: clamp(1.35rem, 2.4vw, 2.1rem);
+      letter-spacing: -0.01em;
+      color: var(--paper);
+      transition: color .3s ease;
     }
-    #search::placeholder { color: var(--faint); letter-spacing: 0.4px; }
-    #search:focus { outline: none; border-color: var(--accent); }
-    #status {
-      margin-top: 8px;
-      font-family: var(--mono);
-      font-size: 10px;
-      letter-spacing: 0.6px;
-      color: var(--faint);
-    }
-    #status.err { color: #c08585; }
-    #status .refresh { color: var(--muted); cursor: pointer; border-bottom: 1px solid var(--line); }
-    #status .refresh:hover { color: var(--accent); border-color: var(--accent); }
+    .tile:not(.soon):hover .tile-title { color: var(--accent); }
+    .tile.soon .tile-cat { color: var(--faint); }
 
-    /* ---- Map (centered) with hairline frame + corner registration ticks ---- */
-    #map-wrap {
-      grid-area: map;
-      position: relative;
-      border: 1px solid var(--line);
-      background: var(--bg-elev);
-    }
-    #map { position: absolute; inset: 0; z-index: 0; }
+    /* Corner registration ticks — same instrument mark as the Ariadne map itself. */
     .tick {
-      position: absolute; width: 13px; height: 13px; z-index: 1100;
-      pointer-events: none; border: 0 solid var(--line-strong);
+      position: absolute;
+      width: 15px; height: 15px;
+      border: 0 solid var(--accent);
+      opacity: 0;
+      transition: opacity .3s ease;
     }
-    .tick.tl { top: -1px; left: -1px; border-top-width: 1px; border-left-width: 1px; }
-    .tick.tr { top: -1px; right: -1px; border-top-width: 1px; border-right-width: 1px; }
-    .tick.bl { bottom: -1px; left: -1px; border-bottom-width: 1px; border-left-width: 1px; }
-    .tick.br { bottom: -1px; right: -1px; border-bottom-width: 1px; border-right-width: 1px; }
+    .tile:not(.soon):hover .tick { opacity: 0.85; }
+    .tick.tl { top: 12px; left: 12px; border-top-width: 1px; border-left-width: 1px; }
+    .tick.tr { top: 12px; right: 12px; border-top-width: 1px; border-right-width: 1px; }
+    .tick.bl { bottom: 12px; left: 12px; border-bottom-width: 1px; border-left-width: 1px; }
+    .tick.br { bottom: 12px; right: 12px; border-bottom-width: 1px; border-right-width: 1px; }
 
-    /* ---- Side rails (float in the gutters, no panel boxes) ---- */
-    .rail { display: flex; flex-direction: column; gap: 26px; overflow-y: auto; padding-bottom: 8px; }
-    #rail-left { grid-area: left; }
-    #rail-right { grid-area: right; }
-    .rail::-webkit-scrollbar { width: 6px; }
-    .rail::-webkit-scrollbar-thumb { background: var(--line); }
-
-    .block .block-h { margin-bottom: 10px; }
-    .block .block-hint {
-      font-family: var(--mono); font-size: 9px; letter-spacing: 0.8px;
-      color: var(--faint); margin: -6px 0 10px; text-transform: uppercase;
-    }
-
-    /* Colour-by segmented control */
-    .seg { display: flex; border: 1px solid var(--line); }
-    .seg button {
-      flex: 1; background: transparent; color: var(--muted); border: none;
-      padding: 7px 6px; font-family: var(--mono); font-size: 11px; letter-spacing: 0.4px;
-      cursor: pointer; transition: color .12s, background .12s;
-    }
-    .seg button + button { border-left: 1px solid var(--line); }
-    .seg button:hover { color: var(--text); }
-    .seg button.active { color: var(--accent); background: var(--accent-dim); }
-
-    .overlay-toggle {
-      display: flex; align-items: center; gap: 8px; margin-top: 12px;
-      font-family: var(--mono); font-size: 11px; letter-spacing: 0.3px;
-      color: var(--text); cursor: pointer; user-select: none;
-    }
-    .overlay-toggle input { accent-color: var(--accent); cursor: pointer; }
-    .overlay-toggle .sub { color: var(--faint); }
-
-    /* Heatmap timeframe / weighting — compact segmented controls, shown only on. */
-    .seg.mini button { padding: 4px 5px; font-size: 10px; }
-    #heat-range, #heat-weight { display: none; margin: 6px 0 0 22px; }
-    #heat-range.on, #heat-weight.on { display: flex; }
-
-    /* Filters (legend doubles as the live key + per-category filter) */
-    #legend-groups .fgroup { margin-bottom: 14px; }
-    #legend-groups .fgroup-title {
-      font-family: var(--mono); font-size: 9px; letter-spacing: 0.8px;
-      text-transform: uppercase; color: var(--faint); margin-bottom: 6px;
-    }
-    #legend-groups .fgroup.colouring .fgroup-title::after {
-      content: ' · colour'; color: var(--accent); letter-spacing: 0.4px;
-    }
-    #legend-groups .frow { display: flex; flex-wrap: wrap; gap: 5px; }
-    #legend-groups .chip {
-      display: inline-flex; align-items: center; gap: 6px;
-      padding: 3px 8px; cursor: pointer; user-select: none;
-      border: 1px solid var(--line-soft);
-      font-family: var(--mono); font-size: 10px; letter-spacing: 0.2px; color: var(--text);
-      transition: border-color .12s, opacity .12s;
-    }
-    #legend-groups .chip:hover { border-color: var(--line-strong); }
-    #legend-groups .chip.off { opacity: 0.32; }
-    #legend-groups .chip .dot { width: 8px; height: 8px; border-radius: 50%; flex: none; }
-    #legend-groups .chip .cnt { color: var(--faint); }
-
-    /* Chart-symbol key (collapsible) */
-    #chartkey { font-size: 12px; }
-    #chartkey > summary {
-      cursor: pointer; list-style: none;
-      font-family: var(--mono); font-size: 10px; letter-spacing: 0.8px;
-      text-transform: uppercase; color: var(--muted);
-    }
-    #chartkey > summary::-webkit-details-marker { display: none; }
-    #chartkey > summary::after { content: ' +'; color: var(--faint); }
-    #chartkey[open] > summary::after { content: ' –'; }
-    #chartkey .body { padding-top: 10px; }
-    #chartkey .ck-row { display: flex; align-items: flex-start; gap: 8px; margin: 7px 0; font-size: 11px; line-height: 1.45; color: var(--text); }
-    #chartkey .ck-row .sym { width: 14px; text-align: center; flex: none; color: var(--muted); }
-    #chartkey .tip { margin-top: 10px; color: var(--muted); font-size: 11px; line-height: 1.45; }
-    #chartkey .note { margin-top: 6px; color: var(--faint); font-size: 10px; }
-
-    /* Scroll cue */
-    #scrollcue {
-      position: absolute; left: 50%; bottom: 12px; transform: translateX(-50%);
-      font-family: var(--mono); font-size: 9px; letter-spacing: 1.6px; text-transform: uppercase;
-      color: var(--faint); pointer-events: none;
-    }
-
-    /* ---- Analytics grid (scroll target) ---- */
-    #dash-head {
-      padding: 0 28px; margin: 18px 0 0;
-      display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
-      border-top: 1px solid var(--line-soft); padding-top: 26px;
-    }
-    #dash-head .t { font-family: var(--mono); font-size: 11px; letter-spacing: 2px; text-transform: uppercase; color: var(--text); }
-    #dash-head .s { font-family: var(--mono); font-size: 10px; letter-spacing: 0.8px; color: var(--faint); }
-    #dash-controls { margin-left: auto; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-    #dash-controls .ctl-lbl {
-      font-family: var(--mono); font-size: 9px; letter-spacing: 1px;
-      text-transform: uppercase; color: var(--faint);
-    }
-
-    #dash {
-      display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-      gap: 16px; padding: 18px 28px 40px; align-items: stretch;
-    }
-    .cell {
-      display: flex; flex-direction: column;
-      background: var(--bg-elev);
-      border: 1px solid var(--line);
-      padding: 16px 18px;
-    }
-    .cell h2 {
-      margin: 0 0 14px;
-      font-family: var(--mono); font-size: 10px; font-weight: 500;
-      letter-spacing: 1.2px; text-transform: uppercase; color: var(--muted);
-      display: flex; align-items: center; gap: 8px;
-    }
-    .cell h2 .est {
-      font-family: var(--mono); font-size: 8px; letter-spacing: 1px;
-      color: var(--faint); border: 1px solid var(--line); padding: 1px 5px;
-    }
-
-    .row { display: flex; align-items: baseline; gap: 8px; margin: 7px 0; font-size: 13px; }
-    .row .dir { flex: 1; }
-    .row .big { font-family: var(--mono); color: var(--accent); font-weight: 500; font-size: 18px; }
-    .row .arrow { width: 14px; display: inline-block; text-align: center; color: var(--faint); font-family: var(--mono); }
-    .sub { color: var(--muted); font-size: 11px; }
-    .meta { font-family: var(--mono); color: var(--faint); font-size: 10px; letter-spacing: 0.3px; margin-top: 8px; }
-
-    .kpis { display: flex; flex-wrap: wrap; gap: 18px; }
-    .kpi .v { font-family: var(--mono); font-size: 22px; font-weight: 500; color: var(--accent); }
-    .kpi .l { font-family: var(--mono); font-size: 9px; letter-spacing: 0.8px; text-transform: uppercase; color: var(--muted); margin-top: 2px; }
-
-    .flags { margin-top: 10px; display: flex; flex-wrap: wrap; gap: 6px; }
-    .flag {
-      font-family: var(--mono); font-size: 10px; letter-spacing: 0.3px;
-      padding: 2px 8px; border: 1px solid var(--line); color: var(--muted);
-    }
-    .flag.warn { border-color: var(--accent); color: var(--accent); }
-
-    /* Completed-passage vessel list (cordon cell) */
-    .px-lbl { margin-top: 12px; }
-    .px-list { margin-top: 4px; max-height: 220px; overflow-y: auto; }
-    .px-list::-webkit-scrollbar { width: 6px; }
-    .px-list::-webkit-scrollbar-thumb { background: var(--line); }
-    .px-row {
-      display: flex; align-items: baseline; gap: 9px;
-      padding: 5px 0; border-top: 1px solid var(--line-soft);
-      font-size: 12px; cursor: pointer;
-    }
-    .px-row:first-child { border-top: none; }
-    .px-row:hover { color: var(--accent); }
-    .px-dir { font-family: var(--mono); color: var(--faint); width: 12px; flex: none; text-align: center; }
-    .px-row:hover .px-dir { color: var(--accent); }
-    .px-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .px-tkr {
-      font-family: var(--mono); font-size: 9px; letter-spacing: 0.4px; text-transform: uppercase;
-      color: var(--muted); border: 1px solid var(--line); padding: 0 4px; flex: none;
-    }
-    .px-t { font-family: var(--mono); font-size: 10px; color: var(--faint); flex: none; }
-    .px-more { font-family: var(--mono); font-size: 10px; color: var(--faint); padding-top: 8px; }
-
-    #int-detail { margin-top: 12px; }
-    .int-row { display: flex; gap: 9px; align-items: flex-start; font-size: 12px; margin: 7px 0; line-height: 1.4; }
-    .int-row .int-ic { flex: none; width: 16px; height: 14px; color: var(--muted); display: inline-flex; align-items: center; justify-content: center; margin-top: 1px; }
-    .int-row .int-ic svg { display: block; }
-    .int-row.click { cursor: pointer; }
-    .int-row.click:hover { color: var(--accent); }
-    .int-row.click:hover .int-ic { color: var(--accent); }
-
-    /* Row 2 — sanctions watchlist + shadow-fleet score */
-    #wl-detail, #sf-detail { margin-top: 12px; }
-    .sf-row {
-      display: flex; align-items: center; gap: 9px;
-      padding: 6px 0; border-top: 1px solid var(--line-soft);
-      font-size: 12px; cursor: pointer;
-    }
-    .sf-row:first-child { border-top: none; }
-    .sf-row:hover { color: var(--accent); }
-    .sf-score {
-      font-family: var(--mono); font-size: 12px; color: var(--accent);
-      width: 28px; flex: none; text-align: right;
-    }
-    .sf-bar { width: 44px; height: 4px; background: var(--line); flex: none; position: relative; }
-    .sf-bar > i { position: absolute; left: 0; top: 0; bottom: 0; background: var(--accent); }
-    .sf-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .sf-reasons {
-      font-family: var(--mono); font-size: 9px; letter-spacing: 0.3px;
-      color: var(--faint); flex: none; text-transform: uppercase;
-    }
-    /* A sanctioned hull is the one place a restrained red earns its keep. */
-    .sf-row.wl .sf-score, .wl-flag { color: #c08585; }
-    .sf-row.wl .sf-bar > i { background: #c08585; }
-    .wl-flag {
-      font-family: var(--mono); font-size: 9px; letter-spacing: 0.4px; text-transform: uppercase;
-      border: 1px solid rgba(192, 133, 133, 0.5); padding: 0 4px; flex: none;
-    }
-
-    /* Day-by-day crossings — stacked bars (outbound + inbound). */
-    .daybars { display: flex; align-items: flex-end; gap: 3px; height: 60px; margin: 12px 0 4px; }
-    .daybars .col { flex: 1; display: flex; flex-direction: column; justify-content: flex-end; min-height: 2px; }
-    .daybars .col .out { background: var(--accent); }
-    .daybars .col .in { background: #7f9bb5; }
-
-    /* Transit-time histogram — fixed-width bars, monochrome. */
-    .dist { display: flex; align-items: flex-end; gap: 2px; height: 46px; margin: 8px 0 2px; }
-    .dist .bar { flex: 1; background: var(--accent); opacity: 0.5; min-height: 2px; }
-    .dist .bar.p50 { background: #c2b87a; opacity: 0.9; }
-
-    /* Export run-rate sparkline. */
-    .spark { height: 44px; margin: 10px 0 4px; }
-    .spark svg { display: block; width: 100%; height: 44px; }
-    .spark .area { fill: var(--accent-dim); }
-    .spark .line { fill: none; stroke: var(--accent); stroke-width: 1.5; }
-    .spark .last { fill: var(--accent); }
-    .spark .last.hot { fill: #c2b87a; }
-
-    /* Region / list rows shared by destinations + floating storage. */
-    .reg-row { display: flex; align-items: center; gap: 9px; padding: 5px 0; border-top: 1px solid var(--line-soft); font-size: 12px; }
-    .reg-row:first-child { border-top: none; }
-    .reg-name { width: 92px; flex: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .reg-bar { flex: 1; height: 4px; background: var(--line); position: relative; }
-    .reg-bar > i { position: absolute; left: 0; top: 0; bottom: 0; background: var(--accent); }
-    .reg-cnt { font-family: var(--mono); font-size: 11px; color: var(--muted); width: 26px; flex: none; text-align: right; }
-    .st-row { display: flex; align-items: center; gap: 9px; padding: 5px 0; border-top: 1px solid var(--line-soft); font-size: 12px; cursor: pointer; }
-    .st-row:first-child { border-top: none; }
-    .st-row:hover { color: var(--accent); }
-    .st-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .st-meta { font-family: var(--mono); font-size: 9px; letter-spacing: 0.3px; color: var(--faint); flex: none; text-transform: uppercase; }
-    .st-badge { font-family: var(--mono); font-size: 9px; color: #c2b87a; flex: none; }
-
-    .ident .ident-h {
-      font-family: var(--mono); font-size: 10px; letter-spacing: 0.8px; text-transform: uppercase;
-      color: var(--accent); margin-bottom: 6px;
-    }
-    .ident .ident-row { margin: 4px 0; line-height: 1.4; }
-    .ident .muted { color: var(--muted); font-size: 11px; }
-
-    /* ---- Leaflet chrome -> monochrome ---- */
-    .leaflet-control-layers, .leaflet-bar {
-      background: var(--bg-elev) !important;
-      border: 1px solid var(--line) !important;
-      border-radius: 0 !important;
-      box-shadow: none !important;
-    }
-    .leaflet-bar a {
-      background: var(--bg-elev) !important; color: var(--muted) !important;
-      border-bottom: 1px solid var(--line) !important;
-    }
-    .leaflet-bar a:hover { background: #232323 !important; color: var(--text) !important; }
-    .leaflet-control-layers-toggle { filter: grayscale(1) brightness(1.6); }
-    .leaflet-control-layers-expanded { color: var(--text); font-family: var(--mono); font-size: 11px; }
-    .leaflet-control-attribution {
-      background: rgba(22, 22, 22, 0.7) !important; color: var(--faint) !important;
-    }
-    .leaflet-control-attribution a { color: var(--muted) !important; }
-
-    .ship { transform-origin: 50% 50%; }
-    .ship svg { display: block; filter: drop-shadow(0 1px 1px rgba(0, 0, 0, .6)); }
-
-    .leaflet-popup-content-wrapper { background: var(--bg-elev); color: var(--text); border-radius: 0; border: 1px solid var(--line); box-shadow: none; }
-    .leaflet-popup-tip { background: var(--bg-elev); border: 1px solid var(--line); }
-    .leaflet-popup-content { margin: 12px 14px; font-size: 12px; line-height: 1.5; }
-    .leaflet-popup-content h3 { margin: 0 0 8px; font-family: var(--mono); font-size: 12px; letter-spacing: 0.6px; color: var(--accent); }
-    .leaflet-popup-content table { border-collapse: collapse; }
-    .leaflet-popup-content td { padding: 1px 0; vertical-align: top; font-size: 12px; }
-    .leaflet-popup-content td.k { color: var(--muted); padding-right: 14px; white-space: nowrap; font-family: var(--mono); font-size: 11px; }
-    a.refresh { color: var(--accent); cursor: pointer; }
-
-    /* ---- Responsive: stack below the gutter layout ---- */
-    @media (max-width: 880px) {
-      #stage {
-        height: auto; min-height: 0;
-        grid-template-columns: 1fr;
-        grid-template-areas: "brand" "map" "left" "right";
-        gap: 20px; padding: 22px 18px 30px;
-      }
-      #map-wrap { height: 62vh; min-height: 320px; }
-      .rail { overflow: visible; }
-      #scrollcue { display: none; }
-      #dash-head, #dash { padding-left: 18px; padding-right: 18px; }
+    @media (max-width: 760px) {
+      .tile, .tile.row2 { grid-column: span 12; aspect-ratio: 4 / 3; }
     }
   </style>
 </head>
 <body>
-  <div id="app">
-    <section id="stage">
-      <header id="brand">
-        <h1>Ariadne</h1>
-        <div class="sub">Strait of Hormuz · AIS via Marinesia</div>
-        <input id="search" type="search" placeholder="search name · mmsi · imo  (enter to zoom)" autocomplete="off" />
-        <div id="status">Loading…</div>
-      </header>
+  <header class="nav">
+    <a class="wordmark" href="/" aria-label="QueensGate — home">
+      <span class="logo">QueensGate</span>
+      <span class="tagline">Infrastructure Research</span>
+    </a>
+  </header>
 
-      <div id="map-wrap">
-        <div id="map"></div>
-        <span class="tick tl"></span><span class="tick tr"></span>
-        <span class="tick bl"></span><span class="tick br"></span>
+  <main class="grid">
+    <a class="tile ariadne" href="/projects/ariadne">
+      <div class="tile-bg"></div>
+      <span class="tick tl"></span><span class="tick tr"></span>
+      <span class="tick bl"></span><span class="tick br"></span>
+      <div class="tile-overlay">
+        <div class="tile-copy">
+          <span class="tile-cat">Maritime Intelligence</span>
+          <span class="tile-title">Ariadne</span>
+        </div>
       </div>
+    </a>
 
-      <aside id="rail-left" class="rail">
-        <div class="block" id="legend">
-          <div class="block-h label">Filters</div>
-          <div class="block-hint">click to toggle · stack across groups</div>
-          <div id="legend-groups"></div>
-        </div>
-      </aside>
-
-      <aside id="rail-right" class="rail">
-        <div class="block" id="modes">
-          <div class="block-h label">Colour by</div>
-          <div class="seg">
-            <button data-mode="type" class="active">Type</button>
-            <button data-mode="age">Age</button>
-            <button data-mode="status">Activity</button>
-          </div>
-          <label id="alltracks" class="overlay-toggle">
-            <input type="checkbox" id="alltracks-cb" />
-            Show all tracks <span class="sub">(filtered)</span>
-          </label>
-          <label id="heatmap" class="overlay-toggle">
-            <input type="checkbox" id="heatmap-cb" />
-            Track heatmap <span class="sub">(paths)</span>
-          </label>
-          <div id="heat-range" class="seg mini" role="group" aria-label="Heatmap timeframe">
-            <button data-hours="6">6h</button>
-            <button data-hours="12">12h</button>
-            <button data-hours="24" class="active">24h</button>
-            <button data-hours="48">48h</button>
-            <button data-hours="72">72h</button>
-          </div>
-          <div id="heat-weight" class="seg mini" role="group" aria-label="Heatmap weighting">
-            <button data-weight="density" class="active">Density</button>
-            <button data-weight="speed">Speed</button>
-            <button data-weight="dwell">Dwell</button>
-          </div>
-          <label id="darkspots" class="overlay-toggle">
-            <input type="checkbox" id="darkspots-cb" />
-            Dark spots <span class="sub">(AIS gaps)</span>
-          </label>
-          <label id="sts" class="overlay-toggle">
-            <input type="checkbox" id="sts-cb" />
-            STS clusters <span class="sub">(transfers)</span>
-          </label>
-        </div>
-
-        <details id="chartkey" class="block">
-          <summary>Chart symbols</summary>
-          <div class="body">
-            <div class="ck-row"><span class="sym">▦</span><span><b>Traffic separation</b> — dashed/zoned lanes; ships keep right, central zone is no-go.</span></div>
-            <div class="ck-row"><span class="sym" style="color:#b06a6a">▮</span><span><b>Red marks</b> — port side when entering (IALA Region A).</span></div>
-            <div class="ck-row"><span class="sym" style="color:#6f9e72">▮</span><span><b>Green marks</b> — starboard side when entering.</span></div>
-            <div class="ck-row"><span class="sym">◆</span><span><b>Cardinal marks</b> — pass to the named side of a danger.</span></div>
-            <div class="ck-row"><span class="sym">✦</span><span><b>Lights / lighthouses</b> — lit navigational aid.</span></div>
-            <div class="ck-row"><span class="sym"><svg width="12" height="12" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.1" stroke-linecap="round" stroke-linejoin="round"><circle cx="7" cy="2.7" r="1.3"/><line x1="7" y1="4" x2="7" y2="11.4"/><line x1="4.6" y1="5.6" x2="9.4" y2="5.6"/><path d="M3.1 8.4 a3.9 3.9 0 0 0 7.8 0"/></svg></span><span><b>Anchorages</b> — where ships wait (e.g. Fujairah).</span></div>
-            <div class="ck-row"><span class="sym">◯</span><span><b>Restricted / platform / pipeline</b> — oil-field infrastructure.</span></div>
-            <div class="tip">Tip: click any feature on the water to identify it.</div>
-            <div class="note">Symbols: OpenSeaMap · IALA Region A buoyage</div>
-          </div>
-        </details>
-      </aside>
-
-      <div id="scrollcue">↓ analytics</div>
-    </section>
-
-    <div id="dash-head">
-      <span class="t">Analytics</span>
-      <span class="s">cordon · flow &amp; run-rate · storage · destinations · integrity</span>
-      <div id="dash-controls">
-        <span class="ctl-lbl">Window</span>
-        <div id="dash-window" class="seg mini" role="group" aria-label="Snapshot window">
-          <button data-hours="6">6h</button>
-          <button data-hours="24" class="active">24h</button>
-          <button data-hours="48">48h</button>
-          <button data-hours="168">7d</button>
-        </div>
-        <span class="ctl-lbl">Trend</span>
-        <div id="dash-trend" class="seg mini" role="group" aria-label="Trend length">
-          <button data-days="7">7d</button>
-          <button data-days="14" class="active">14d</button>
-          <button data-days="30">30d</button>
+    <div class="tile soon">
+      <div class="tile-bg"></div>
+      <div class="tile-overlay">
+        <div class="tile-copy">
+          <span class="tile-cat">Coming soon</span>
         </div>
       </div>
     </div>
 
-    <div id="dash">
-      <div class="cell" id="cell-fleet">
-        <h2>Fleet on station</h2>
-        <div class="kpis">
-          <div class="kpi"><div class="v" id="fleet-total">—</div><div class="l">Present</div></div>
-          <div class="kpi"><div class="v" id="fleet-underway">—</div><div class="l">Under way</div></div>
-          <div class="kpi"><div class="v" id="fleet-anchored">—</div><div class="l">Anchored</div></div>
-          <div class="kpi"><div class="v" id="fleet-tankers">—</div><div class="l">Tankers</div></div>
-          <div class="kpi"><div class="v" id="fleet-cargo">—</div><div class="l">Cargo</div></div>
+    <div class="tile soon row2">
+      <div class="tile-bg"></div>
+      <div class="tile-overlay">
+        <div class="tile-copy">
+          <span class="tile-cat">Coming soon</span>
         </div>
-        <div class="meta" id="fleet-showing"></div>
-      </div>
-
-      <div class="cell" id="cell-activity">
-        <h2>Gulf activity · <span class="trend">14 d</span></h2>
-        <div class="kpis">
-          <div class="kpi"><div class="v" id="ga-ships">—</div><div class="l">Ships present</div></div>
-          <div class="kpi"><div class="v" id="ga-tankers">—</div><div class="l">Tankers</div></div>
-          <div class="kpi"><div class="v" id="ga-today">—</div><div class="l">Crossings today</div></div>
-        </div>
-        <div id="ga-bars" class="daybars"></div>
-        <div class="meta" id="ga-note"></div>
-      </div>
-
-      <div class="cell" id="cell-cordon">
-        <h2>Cordon — completed passages · <span class="win">24 h</span></h2>
-        <div class="row">
-          <span class="arrow">→</span>
-          <span class="dir">Outbound <span class="sub">(exports)</span></span>
-          <span class="big" id="tx-out">—</span>
-          <span class="sub" id="tx-out-t"></span>
-        </div>
-        <div class="row">
-          <span class="arrow">←</span>
-          <span class="dir">Inbound <span class="sub">(into Gulf)</span></span>
-          <span class="big" id="tx-in">—</span>
-          <span class="sub" id="tx-in-t"></span>
-        </div>
-        <div class="meta" id="tx-median"></div>
-        <div class="meta" id="tx-gross"></div>
-        <div class="meta px-lbl">Transit-time distribution</div>
-        <div id="tx-dist" class="dist"></div>
-        <div class="meta" id="tx-dist-note"></div>
-        <div class="meta px-lbl">Recent crossings</div>
-        <div id="tx-list" class="px-list"></div>
-      </div>
-
-      <div class="cell" id="cell-flow">
-        <h2>Estimated crude flow · <span class="win">24 h</span> <span class="est">Estimate</span></h2>
-        <div class="row">
-          <span class="arrow">→</span>
-          <span class="dir">Outbound exports</span>
-          <span class="big" id="flow-out-bbl">—</span>
-          <span class="sub">bbl</span>
-        </div>
-        <div class="row">
-          <span class="arrow">←</span>
-          <span class="dir">Inbound</span>
-          <span class="big" id="flow-in-bbl">—</span>
-          <span class="sub">bbl</span>
-        </div>
-        <div class="meta" id="flow-n"></div>
-        <div class="meta" id="flow-note"></div>
-      </div>
-
-      <div class="cell" id="cell-runrate">
-        <h2>Export run-rate · <span class="trend">14 d</span> <span class="est">Trend</span></h2>
-        <div class="sub">Outbound tanker barrels per day, with a z-score of today vs the trailing window.</div>
-        <div id="rr-spark" class="spark"></div>
-        <div class="row">
-          <span class="dir">Latest day</span>
-          <span class="big" id="rr-latest">—</span>
-          <span class="sub">bbl</span>
-        </div>
-        <div class="meta" id="rr-note"></div>
-      </div>
-
-      <div class="cell" id="cell-storage">
-        <h2>Floating storage &amp; queues · <span class="win">24 h</span> <span class="est">Estimate</span></h2>
-        <div class="kpis">
-          <div class="kpi"><div class="v" id="st-parked">—</div><div class="l">Parked tankers</div></div>
-          <div class="kpi"><div class="v" id="st-laden">—</div><div class="l">Laden</div></div>
-          <div class="kpi"><div class="v" id="st-bbl">—</div><div class="l">Stored bbl</div></div>
-        </div>
-        <div id="st-detail"></div>
-        <div class="meta" id="st-note"></div>
-      </div>
-
-      <div class="cell" id="cell-dest">
-        <h2>Outbound destinations <span class="est">AIS-stated</span></h2>
-        <div class="sub">Latest declared destination per tanker on station, by market region.</div>
-        <div id="dest-detail"></div>
-        <div class="meta" id="dest-note"></div>
-      </div>
-
-      <div class="cell" id="cell-anomalies">
-        <h2>Anomalies · <span class="win">24 h</span></h2>
-        <div class="sub">Cordon integrity signals (loitering / U-turns / dark candidates).</div>
-        <div class="flags" id="tx-flags"></div>
-      </div>
-
-      <div class="cell" id="cell-integrity">
-        <h2>Integrity layer · <span class="win">24 h</span> <span class="est">Signals</span></h2>
-        <div class="kpis">
-          <div class="kpi"><div class="v" id="int-dark">—</div><div class="l">Dark ships</div></div>
-          <div class="kpi"><div class="v" id="int-sts">—</div><div class="l">STS pairs</div></div>
-          <div class="kpi"><div class="v" id="int-spoof">—</div><div class="l">ID flags</div></div>
-          <div class="kpi"><div class="v" id="int-jump">—</div><div class="l">Jumps</div></div>
-        </div>
-        <div id="int-detail"></div>
-        <div class="meta" id="int-note"></div>
-      </div>
-
-      <!-- Row 2 — sanctions exposure -->
-      <div class="cell" id="cell-watchlist">
-        <h2>Sanctions watchlist <span class="est">Watchlist</span></h2>
-        <div class="kpis">
-          <div class="kpi"><div class="v" id="wl-onstation">—</div><div class="l">On station</div></div>
-          <div class="kpi"><div class="v" id="wl-size">—</div><div class="l">Designated</div></div>
-        </div>
-        <div id="wl-detail"></div>
-        <div class="meta" id="wl-note"></div>
-      </div>
-
-      <div class="cell" id="cell-shadow">
-        <h2>Shadow-fleet watch · <span class="win">24 h</span> <span class="est">Score</span></h2>
-        <div class="sub">Hulls ranked by composite risk fused from the integrity signals (reflag · IMO-swap · dark · STS · identity).</div>
-        <div id="sf-detail"></div>
-        <div class="meta" id="sf-note"></div>
       </div>
     </div>
-  </div>
-
-  <script src="app.js"></script>
+    <div class="tile soon row2">
+      <div class="tile-bg"></div>
+      <div class="tile-overlay">
+        <div class="tile-copy">
+          <span class="tile-cat">Coming soon</span>
+        </div>
+      </div>
+    </div>
+    <div class="tile soon row2">
+      <div class="tile-bg"></div>
+      <div class="tile-overlay">
+        <div class="tile-copy">
+          <span class="tile-cat">Coming soon</span>
+        </div>
+      </div>
+    </div>
+  </main>
 </body>
 </html>
