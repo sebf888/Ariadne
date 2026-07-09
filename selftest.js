@@ -290,4 +290,56 @@ ok('sanctions.loadWatchlist: shipped file is valid and empty by default', () => 
   assert.deepStrictEqual(sanctions.loadWatchlist('/no/such/file.json'), []);
 });
 
+// --- Vessel size / cargo estimation (the barrel maths) ----------------------
+
+const estimate = require('./lib/estimate');
+const FLOW = {
+  refLen: 330, refDwt: 300000, cargoFraction: 0.93, bblPerTonne: 7.33,
+  draughtCoef: 0.066, ballastFraction: 0.5, minLengthM: 100,
+};
+
+ok('estimate.vesselClass: length → conventional tanker class', () => {
+  assert.strictEqual(estimate.vesselClass(330), 'VLCC');
+  assert.strictEqual(estimate.vesselClass(380), 'ULCC');
+  assert.strictEqual(estimate.vesselClass(275), 'Suezmax');
+  assert.strictEqual(estimate.vesselClass(250), 'Aframax/LR2');
+  assert.strictEqual(estimate.vesselClass(183), 'MR');
+  assert.strictEqual(estimate.vesselClass(120), 'Handy');
+  assert.strictEqual(estimate.vesselClass(0), null);
+  assert.strictEqual(estimate.vesselClass(null), null);
+});
+
+ok('estimate.estimateDwt: cube law anchors the VLCC and clamps extremes', () => {
+  assert.strictEqual(estimate.estimateDwt(330, FLOW), 300000);      // reference exact
+  assert.strictEqual(estimate.estimateDwt(90, FLOW), null);         // below min length
+  // Cube law within band: a Suezmax (~275 m) lands ~170k DWT.
+  const sxm = estimate.estimateDwt(275, FLOW);
+  assert.ok(sxm > 150000 && sxm < 200000, `suezmax dwt ${sxm}`);
+  // A mislabelled 450 m hull is clamped to the ULCC ceiling, not ~760k.
+  assert.strictEqual(estimate.estimateDwt(450, FLOW), estimate.DWT_MAX);
+});
+
+ok('estimate.capacityBbl: VLCC ≈ 2.0M bbl, unknown length → null', () => {
+  const vlcc = estimate.capacityBbl(330, FLOW);
+  assert.ok(vlcc > 1.9e6 && vlcc < 2.1e6, `vlcc bbl ${vlcc}`);
+  assert.strictEqual(estimate.capacityBbl(50, FLOW), null);
+});
+
+ok('estimate.ladenFraction: clamps to [0,1], null when unmeasured', () => {
+  const design = estimate.designDraught(330, FLOW);           // ~21.8 m
+  assert.strictEqual(estimate.ladenFraction(design, design, 0.5), 1);          // full
+  assert.strictEqual(estimate.ladenFraction(0.5 * design, design, 0.5), 0);    // ballast
+  const half = estimate.ladenFraction(0.75 * design, design, 0.5);
+  assert.ok(Math.abs(half - 0.5) < 1e-9, `half laden ${half}`);
+  assert.strictEqual(estimate.ladenFraction(design * 2, design, 0.5), 1);      // over-clamped
+  assert.strictEqual(estimate.ladenFraction(null, design, 0.5), null);         // no draught
+  assert.strictEqual(estimate.ladenFraction(10, 0, 0.5), null);                // no design
+});
+
+ok('estimate.impliedBarrels: unknowns never count as zero', () => {
+  assert.strictEqual(estimate.impliedBarrels(2.0e6, 0.5), 1.0e6);
+  assert.strictEqual(estimate.impliedBarrels(null, 0.5), null);
+  assert.strictEqual(estimate.impliedBarrels(2.0e6, null), null);
+});
+
 console.log(`\n${passed} tests passed.\n`);

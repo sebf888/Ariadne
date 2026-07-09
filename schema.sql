@@ -228,13 +228,15 @@ CREATE TABLE IF NOT EXISTS ingest_runs (
 -- (which already persists), snapshotted here for point-in-time integrity and to
 -- decouple long-horizon history from passage retention.
 CREATE TABLE IF NOT EXISTS daily_flows (
-  d           DATE NOT NULL,
-  direction   TEXT NOT NULL,            -- 'inbound' | 'outbound'
-  passages    INTEGER NOT NULL DEFAULT 0,
-  barrels     BIGINT  NOT NULL DEFAULT 0,   -- implied laden crude barrels
-  computed_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  d            DATE NOT NULL,
+  direction    TEXT NOT NULL,            -- 'inbound' | 'outbound'
+  passages     INTEGER NOT NULL DEFAULT 0,
+  with_draught INTEGER NOT NULL DEFAULT 0,  -- of those, laden from reported draught (rest: fallback)
+  barrels      BIGINT  NOT NULL DEFAULT 0,  -- implied laden crude barrels (estimate)
+  computed_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
   PRIMARY KEY (d, direction)
 );
+ALTER TABLE daily_flows ADD COLUMN IF NOT EXISTS with_draught INTEGER NOT NULL DEFAULT 0;
 
 -- Floating storage (oil on water) per UTC day. THIS is the signal the 7-day
 -- prune would otherwise destroy: dwell can run weeks, so it can only be built
