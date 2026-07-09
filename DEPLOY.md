@@ -48,7 +48,7 @@ nowhere** — Railway injects it and `server.js` reads it (`lib/config.js`).
 | `DATABASE_URL` | *(from .env)* | Supabase connection string |
 | `INGEST_TOKEN` | *(from .env)* | Protects `POST /api/ingest` |
 | `LIVE_WINDOW_MIN` | `60` | |
-| `POSITIONS_RETENTION_DAYS` | `30` | |
+| `POSITIONS_RETENTION_DAYS` | `7` | keep small on free-tier disk (see note) |
 | `MARINESIA_API_KEY` | *(from .env)* | Only needed if you use the manual `/api/ingest` trigger; otherwise omit |
 
 > ⚠️ **Do NOT set `RUN_INGEST_IN_PROCESS=1` on the web service.** That flag makes
@@ -61,9 +61,16 @@ nowhere** — Railway injects it and `server.js` reads it (`lib/config.js`).
 | `DATABASE_URL` | *(from .env)* | same Supabase string |
 | `MARINESIA_API_KEY` | *(from .env)* | **required** — the worker fetches |
 | `INGEST_INTERVAL_MS` | `60000` | one cycle/min (matches the 5/min budget) |
-| `POSITIONS_RETENTION_DAYS` | `30` | worker runs the prune |
+| `POSITIONS_RETENTION_DAYS` | `7` | worker runs the prune; keep small (see note) |
 | `TILES_PER_CYCLE` | *(optional)* | default 3 |
 | `BACKFILL_PER_CYCLE` | *(optional)* | default 1 |
+
+> ⚠️ **Free-tier disk.** The `positions` fact table grows ~15–20 MB/day with
+> Gulf-wide tiling. At the old 30-day retention it reached ~380 MB and **filled
+> the Supabase free-tier disk, crash-looping Postgres** (`No space left on
+> device` in WAL). Keep `POSITIONS_RETENTION_DAYS` small (7 ≈ ~130 MB, plateaus
+> safely). The live map no longer needs deep history — it reads the denormalized
+> `vessels.cur_*` columns, not the fact table.
 
 ---
 
