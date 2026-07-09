@@ -48,6 +48,12 @@ ALTER TABLE vessels ADD COLUMN IF NOT EXISTS cur_dest    TEXT;
 ALTER TABLE vessels ADD COLUMN IF NOT EXISTS cur_eta     TEXT;
 ALTER TABLE vessels ADD COLUMN IF NOT EXISTS cur_ts      TIMESTAMPTZ;
 
+-- Size class (VLCC/Suezmax/…) from length — set by enrichVessels via
+-- lib/estimate.vesselClass. Used for the size-class flow breakdown and as the
+-- documented cargo-grade PROXY (large ≈ crude, small ≈ clean product); the feed
+-- declares no actual cargo grade. See METHODOLOGY.md.
+ALTER TABLE vessels ADD COLUMN IF NOT EXISTS size_class TEXT;
+
 -- Fact: the position time-series. Append-only, idempotent on (mmsi, ts).
 CREATE TABLE IF NOT EXISTS positions (
   mmsi     BIGINT NOT NULL,

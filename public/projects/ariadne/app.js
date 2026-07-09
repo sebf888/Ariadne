@@ -792,11 +792,31 @@ function fmtBbl(n) {
 async function refreshFlow() {
   try {
     const f = await (await fetch(`/api/flow?hours=${dashHours}`)).json();
-    const set = (id, v) => { document.getElementById(id).textContent = v; };
+    const set = (id, v) => { const e = document.getElementById(id); if (e) e.textContent = v; };
     set('flow-out-bbl', fmtBbl(f.outbound.barrels));
     set('flow-in-bbl', fmtBbl(f.inbound.barrels));
-    set('flow-n', `From ${f.outbound.tankerPassages} outbound / ${f.inbound.tankerPassages} inbound tanker passages`);
-    set('flow-note', f.assumptions ? `≈ ${f.assumptions.capacity}` : '');
+
+    // Crude/product split — a size proxy (feed declares no cargo grade).
+    const g = f.byGrade || { crude: { barrels: 0 }, product: { barrels: 0 } };
+    set('flow-grade', `Grade (size-proxy): crude ${fmtBbl(g.crude.barrels)} · product ${fmtBbl(g.product.barrels)}`);
+
+    // Size-class mix by estimated barrels.
+    const el = document.getElementById('flow-class');
+    if (el) {
+      const bc = (f.byClass || []).filter((c) => c.barrels > 0);
+      const max = Math.max(1, ...bc.map((c) => c.barrels));
+      el.innerHTML = bc.map((c) => {
+        const pct = Math.round((c.barrels / max) * 100);
+        return `<div class="reg-row"><span class="reg-name">${esc(c.class)}</span>` +
+          `<span class="reg-bar"><i style="width:${pct}%"></i></span>` +
+          `<span class="reg-cnt">${fmtBbl(c.barrels)}</span></div>`;
+      }).join('');
+    }
+
+    const cov = (f.outbound.ladenFromDraught || 0) + (f.inbound.ladenFromDraught || 0);
+    const tot = f.outbound.tankerPassages + f.inbound.tankerPassages;
+    set('flow-n', `${f.outbound.tankerPassages} outbound / ${f.inbound.tankerPassages} inbound · ${cov}/${tot} laden via draught`);
+    set('flow-note', 'Detected transits only — a relative index, not a total. See METHODOLOGY.');
   } catch (_) { /* leave previous values */ }
 }
 

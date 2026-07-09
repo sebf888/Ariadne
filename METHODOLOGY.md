@@ -153,9 +153,17 @@ clusters of parked tankers ≈ an anchorage queue.
 1. **Absolute volumes undercount** (partial AIS capture, §4). Trends, not levels.
 2. **Cargo is inferred**, not measured — capacity from length (§2), load from a
    noisy draught field (§3). Figures are estimates within ~±20% at the hull level.
-3. **No cargo-grade split** — a "tanker" may carry crude, product, chemicals or
-   be an LNG/LPG carrier; barrels assume crude-equivalent. Grade classification
-   is future work.
+3. **Cargo grade is a size PROXY, not declared.** The feed carries no cargo
+   grade — every liquid-bulk hull is typed only `"Tanker"` (verified: the record
+   exposes name, imo, type, flag, dimensions, position, dest, eta, draught,
+   status — no AIS ship-type code or cargo category). So the crude/product split
+   (`byGrade`, `gradeBasis: "size-proxy"`) is inferred from length via the
+   standard dirty/clean heuristic — Aframax and larger (≥ 228 m) ≈ crude/dirty,
+   smaller (LR1/MR/Handy) ≈ clean product (`estimate.cargoProxy`). LR2 (clean,
+   Aframax-size) is the known ambiguous case, and **gas carriers (LNG/LPG) cannot
+   be separated at all** and are counted as crude-equivalent barrels — a genuine
+   overstatement of oil for the minority of gas traffic. The `byClass` breakdown
+   (VLCC/Suezmax/…) is exact from length; the crude/product rollup is the proxy.
 4. **Direction is a longitude proxy**, not projected onto the gate normal — fine
    for the roughly NW–SE strait, weaker for oblique crossings.
 5. **Sparse sampling** (§1) makes floating-storage speed/span noisy on

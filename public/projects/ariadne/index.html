@@ -353,6 +353,9 @@
     .reg-bar { flex: 1; height: 4px; background: var(--line); position: relative; }
     .reg-bar > i { position: absolute; left: 0; top: 0; bottom: 0; background: var(--accent); }
     .reg-cnt { font-family: var(--mono); font-size: 11px; color: var(--muted); width: 26px; flex: none; text-align: right; }
+    .classmix { margin: 8px 0 2px; }
+    .classmix .reg-name { width: 78px; font-family: var(--mono); font-size: 10px; letter-spacing: 0.3px; color: var(--muted); }
+    .classmix .reg-cnt { width: 44px; }
     .st-row { display: flex; align-items: center; gap: 9px; padding: 5px 0; border-top: 1px solid var(--line-soft); font-size: 12px; cursor: pointer; }
     .st-row:first-child { border-top: none; }
     .st-row:hover { color: var(--accent); }
@@ -571,7 +574,7 @@
       </div>
 
       <div class="cell" id="cell-flow">
-        <h2>Estimated crude flow · <span class="win">24 h</span> <span class="est">Estimate</span></h2>
+        <h2>Estimated tanker flow · <span class="win">24 h</span> <span class="est">Estimate</span></h2>
         <div class="row">
           <span class="arrow">→</span>
           <span class="dir">Outbound exports</span>
@@ -584,6 +587,8 @@
           <span class="big" id="flow-in-bbl">—</span>
           <span class="sub">bbl</span>
         </div>
+        <div class="meta" id="flow-grade"></div>
+        <div id="flow-class" class="classmix"></div>
         <div class="meta" id="flow-n"></div>
         <div class="meta" id="flow-note"></div>
       </div>

@@ -319,6 +319,16 @@ ok('estimate.estimateDwt: cube law anchors the VLCC and clamps extremes', () => 
   assert.strictEqual(estimate.estimateDwt(450, FLOW), estimate.DWT_MAX);
 });
 
+ok('estimate.cargoProxy: size-based crude/product split (feed has no grade)', () => {
+  assert.strictEqual(estimate.cargoProxy(330), 'crude');    // VLCC
+  assert.strictEqual(estimate.cargoProxy(275), 'crude');    // Suezmax
+  assert.strictEqual(estimate.cargoProxy(228), 'crude');    // Aframax floor = divide
+  assert.strictEqual(estimate.cargoProxy(210), 'product');  // LR1/Panamax
+  assert.strictEqual(estimate.cargoProxy(180), 'product');  // MR
+  assert.strictEqual(estimate.cargoProxy(90), null);        // below floor
+  assert.strictEqual(estimate.cargoProxy(null), null);
+});
+
 ok('estimate.capacityBbl: VLCC ≈ 2.0M bbl, unknown length → null', () => {
   const vlcc = estimate.capacityBbl(330, FLOW);
   assert.ok(vlcc > 1.9e6 && vlcc < 2.1e6, `vlcc bbl ${vlcc}`);
