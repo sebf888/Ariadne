@@ -304,6 +304,7 @@ async function init() {
   refreshFlow();
   refreshFlowSeries();
   refreshStorage();
+  refreshHistory();
   refreshDestinations();
   refreshIntegrity();
   setInterval(refresh, REFRESH_MS);
@@ -312,6 +313,7 @@ async function init() {
   setInterval(refreshFlow, REFRESH_MS);
   setInterval(refreshFlowSeries, REFRESH_MS);
   setInterval(refreshStorage, REFRESH_MS);
+  setInterval(refreshHistory, REFRESH_MS);
   setInterval(refreshDestinations, REFRESH_MS);
   setInterval(refreshIntegrity, REFRESH_MS);
 
@@ -896,6 +898,58 @@ function renderStorage(s) {
     `${s.parked} parked tanker${s.parked === 1 ? '' : 's'}` +
     (q ? ` · ${q} queue${q > 1 ? 's' : ''} (≥2 clustered)` : '') +
     ` · laden via draught where known · estimate`);
+}
+
+// --- Persistent floating-storage history + dwell ----------------------------
+// Long-horizon signal from /api/history (daily snapshots that survive the 7-day
+// positions prune). Single series → no legend; reuses the run-rate spark styling.
+
+const HIST_DAYS = 90;
+
+async function refreshHistory() {
+  try {
+    renderHistory(await (await fetch(`/api/history?days=${HIST_DAYS}`)).json());
+  } catch (_) { /* leave previous values */ }
+}
+
+function renderHistory(h) {
+  const set = (id, v) => { const e = document.getElementById(id); if (e) e.textContent = v; };
+  const spark = document.getElementById('fh-spark');
+  if (!h || h.error) return;
+  const dw = h.dwell || {};
+  set('fh-d7', dw.d7 != null ? dw.d7 : '—');
+  set('fh-d12', dw.d12 != null ? dw.d12 : '—');
+  set('fh-d20', dw.d20 != null ? dw.d20 : '—');
+
+  const series = h.storage || [];
+  if (!series.length) {
+    if (spark) spark.innerHTML = '';
+    set('fh-latest', '—');
+    set('fh-note', 'history accrues daily · one immutable snapshot per completed UTC day');
+    return;
+  }
+  const vals = series.map((s) => s.barrels || 0);
+  const max = Math.max(1, ...vals);
+  const W = 240, H = 44, n = vals.length;
+  const X = (i) => (n > 1 ? (i / (n - 1)) * W : W / 2);
+  const Y = (v) => H - (v / max) * (H - 4) - 2;
+  const line = vals.map((v, i) => `${i ? 'L' : 'M'}${X(i).toFixed(1)},${Y(v).toFixed(1)}`).join(' ');
+  const area = `M${X(0).toFixed(1)},${H} ` +
+    vals.map((v, i) => `L${X(i).toFixed(1)},${Y(v).toFixed(1)}`).join(' ') +
+    ` L${X(n - 1).toFixed(1)},${H} Z`;
+  spark.innerHTML =
+    `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">` +
+    (n > 1 ? `<path class="area" d="${area}"/><path class="line" d="${line}"/>` : '') +
+    `<circle class="last" cx="${X(n - 1).toFixed(1)}" cy="${Y(vals[n - 1]).toFixed(1)}" r="2.5"/>` +
+    `</svg>`;
+
+  const last = series[series.length - 1];
+  set('fh-latest', fmtBbl(last.barrels));
+  const cov = last.parked ? Math.round((last.laden_count / last.parked) * 100) : 0;
+  const md = (s) => s.d.slice(5); // MM-DD
+  set('fh-note',
+    `${series.length}d history · latest ${last.parked} parked, ${cov}% laden via draught · ` +
+    `${md(series[0])}–${md(last)} · estimate`);
 }
 
 // --- Outbound destinations (origin-destination) -----------------------------
