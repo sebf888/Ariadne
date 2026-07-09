@@ -656,6 +656,8 @@
     </div>
   </div>
 
-  <script src="app.js"></script>
+  <!-- Absolute path: a relative "app.js" resolves to /projects/app.js (404)
+       when the page is visited at /projects/ariadne without a trailing slash. -->
+  <script src="/projects/ariadne/app.js"></script>
 </body>
 </html>
