@@ -30,6 +30,24 @@ CREATE TABLE IF NOT EXISTS vessels (
 -- Idempotent add for databases created before backfill existed.
 ALTER TABLE vessels ADD COLUMN IF NOT EXISTS backfilled_at TIMESTAMPTZ;
 
+-- Denormalized "current position": the vessel's latest AIS report mirrored onto
+-- the dimension row. The live map reads one row per vessel from here instead of
+-- computing DISTINCT ON over the multi-million-row positions fact (which timed
+-- out once Gulf-wide tiling grew the data). Maintained by buildVesselUpsert
+-- (advanced only when a newer cur_ts arrives) and seeded by
+-- scripts/backfill-current-pos.js. Mirrors the positions columns minus geom.
+ALTER TABLE vessels ADD COLUMN IF NOT EXISTS cur_lat     DOUBLE PRECISION;
+ALTER TABLE vessels ADD COLUMN IF NOT EXISTS cur_lng     DOUBLE PRECISION;
+ALTER TABLE vessels ADD COLUMN IF NOT EXISTS cur_sog     DOUBLE PRECISION;
+ALTER TABLE vessels ADD COLUMN IF NOT EXISTS cur_cog     DOUBLE PRECISION;
+ALTER TABLE vessels ADD COLUMN IF NOT EXISTS cur_hdt     INTEGER;
+ALTER TABLE vessels ADD COLUMN IF NOT EXISTS cur_rot     DOUBLE PRECISION;
+ALTER TABLE vessels ADD COLUMN IF NOT EXISTS cur_draught DOUBLE PRECISION;
+ALTER TABLE vessels ADD COLUMN IF NOT EXISTS cur_status  INTEGER;
+ALTER TABLE vessels ADD COLUMN IF NOT EXISTS cur_dest    TEXT;
+ALTER TABLE vessels ADD COLUMN IF NOT EXISTS cur_eta     TEXT;
+ALTER TABLE vessels ADD COLUMN IF NOT EXISTS cur_ts      TIMESTAMPTZ;
+
 -- Fact: the position time-series. Append-only, idempotent on (mmsi, ts).
 CREATE TABLE IF NOT EXISTS positions (
   mmsi     BIGINT NOT NULL,

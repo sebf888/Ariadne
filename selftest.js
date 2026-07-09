@@ -137,11 +137,11 @@ ok('buildVesselUpsert: column/value alignment', () => {
   const n1 = normalizeVessel(sample).vessel;
   const n2 = normalizeVessel({ ...sample, mmsi: 999, name: 'OTHER' }).vessel;
   const { text, values } = buildVesselUpsert([n1, n2]);
-  assert.strictEqual(values.length, 10);            // 10 columns
+  assert.strictEqual(values.length, 21);            // 10 identity/meta + 11 cur_* columns
   values.forEach((col) => assert.strictEqual(col.length, 2)); // 2 rows
   assert.deepStrictEqual(values[0], [538001234, 999]); // mmsi column
   assert.deepStrictEqual(values[2], ['FRONT ALTAIR', 'OTHER']); // name column
-  for (let i = 1; i <= 10; i++) assert.ok(text.includes(`$${i}::`));
+  for (let i = 1; i <= 21; i++) assert.ok(text.includes(`$${i}::`));
 });
 
 ok('buildPositionInsert: column/value alignment', () => {
