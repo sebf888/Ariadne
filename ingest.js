@@ -98,14 +98,21 @@ async function runCycle() {
   const sts = await db.detectStsCandidates(cfg.INTEGRITY, cfg.LIVE_WINDOW_MIN, cfg.ANCHORAGES);
 
   let pruned = 0;
+  let rolledUp = [];
   if (Date.now() - lastPrune > PRUNE_EVERY_MS) {
+    // Snapshot any complete days into the persistent daily_* rollups BEFORE the
+    // prune removes those positions, so long-horizon oil signals survive.
+    rolledUp = await db.rollupPendingDays(cfg.FLOW, cfg.STORAGE).catch((e) => {
+      console.error(`[ingest] rollup failed: ${e.message}`);
+      return [];
+    });
     pruned = await db.prunePositions(cfg.POSITIONS_RETENTION_DAYS);
     lastPrune = Date.now();
   }
 
   await db.recordRun({ vesselCount: vessels.length, ok: true }).catch(() => {});
 
-  return { seen: raw.length, stored: vessels.length, inserted, backfill, crossings, passages, dark, sts, pruned, tiles };
+  return { seen: raw.length, stored: vessels.length, inserted, backfill, crossings, passages, dark, sts, pruned, rolledUp, tiles };
 }
 
 async function loop() {
@@ -127,6 +134,7 @@ async function loop() {
         `new=${r.inserted} backfill=${r.backfill.vessels}/${r.backfill.points}pts ` +
         `gatecross+=${r.crossings} passages+=${r.passages} ` +
         `dark=${r.dark.opened}+/${r.dark.resumed}- sts=${r.sts.opened}+/${r.sts.extended}~` +
+        `${r.rolledUp.length ? ` rolledup=${r.rolledUp.length}d` : ''}` +
         `${r.pruned ? ` pruned=${r.pruned}` : ''} (${Date.now() - t0}ms)`
       );
     } catch (e) {

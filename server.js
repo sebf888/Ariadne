@@ -127,6 +127,20 @@ async function handleDestinations(req, res) {
   }
 }
 
+// Persistent daily rollups — long-horizon oil signals that outlive the raw
+// positions prune (flow run-rate + floating-storage level & dwell).
+async function handleHistory(req, res) {
+  let days = parseInt(new URL(req.url, 'http://localhost').searchParams.get('days'), 10);
+  if (!Number.isFinite(days) || days <= 0) days = 90;
+  days = Math.min(days, 730);
+  try {
+    sendJson(res, 200, await db.getHistory(days));
+  } catch (e) {
+    console.error('[history] query error:', e.message);
+    sendJson(res, 503, { error: e.message });
+  }
+}
+
 async function handleIntegrity(req, res) {
   try {
     sendJson(res, 200, await db.getIntegritySummary(windowHours(req), cfg.INTEGRITY, cfg.LIVE_WINDOW_MIN));
@@ -199,6 +213,7 @@ const server = http.createServer((req, res) => {
   if (url === '/api/flowseries') return handleFlowSeries(req, res);
   if (url === '/api/storage') return handleStorage(req, res);
   if (url === '/api/destinations') return handleDestinations(req, res);
+  if (url === '/api/history') return handleHistory(req, res);
   if (url === '/api/integrity') return handleIntegrity(req, res);
   if (url === '/api/config') {
     return sendJson(res, 200, {

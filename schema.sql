@@ -214,3 +214,46 @@ CREATE TABLE IF NOT EXISTS ingest_runs (
   ok          BOOLEAN,
   error       TEXT
 );
+
+-- ============================================================================
+-- Persistent daily analytics rollups. Raw `positions` expire at 7 days, but the
+-- crude-market *signals* derived from them must persist for months/years. Each
+-- day is snapshotted once (immutable, point-in-time — no lookahead) and kept
+-- forever; each row is a few bytes, so a decade costs a few MB. Written by
+-- db.rollupDay() (from the ingest loop, before the prune reaches that day) and
+-- seeded by scripts/rollup-history.js. See PLAN §analytics.
+-- ----------------------------------------------------------------------------
+
+-- Strait transit barrel flow per UTC day × direction. Sourced from `passages`
+-- (which already persists), snapshotted here for point-in-time integrity and to
+-- decouple long-horizon history from passage retention.
+CREATE TABLE IF NOT EXISTS daily_flows (
+  d           DATE NOT NULL,
+  direction   TEXT NOT NULL,            -- 'inbound' | 'outbound'
+  passages    INTEGER NOT NULL DEFAULT 0,
+  barrels     BIGINT  NOT NULL DEFAULT 0,   -- implied laden crude barrels
+  computed_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  PRIMARY KEY (d, direction)
+);
+
+-- Floating storage (oil on water) per UTC day. THIS is the signal the 7-day
+-- prune would otherwise destroy: dwell can run weeks, so it can only be built
+-- by capturing each day before its positions expire. Aggregate + per-vessel
+-- membership (the latter lets us derive multi-day dwell buckets over time).
+CREATE TABLE IF NOT EXISTS daily_storage (
+  d                DATE PRIMARY KEY,
+  parked           INTEGER NOT NULL DEFAULT 0,   -- tankers parked that day
+  laden_count      INTEGER NOT NULL DEFAULT 0,   -- of those, laden (barrels known)
+  barrels          BIGINT  NOT NULL DEFAULT 0,   -- implied floating-storage barrels
+  avg_parked_hours REAL,
+  computed_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS daily_storage_vessel (
+  d            DATE NOT NULL,
+  mmsi         BIGINT NOT NULL,
+  parked_hours REAL,
+  barrels      BIGINT,                  -- NULL when laden state unknown (no draught)
+  PRIMARY KEY (d, mmsi)
+);
+CREATE INDEX IF NOT EXISTS daily_storage_vessel_mmsi_idx ON daily_storage_vessel (mmsi, d);
