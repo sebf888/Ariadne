@@ -4,543 +4,281 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Hephaestus — Rare-Earth Element Index Family</title>
-  <meta name="description" content="QueensGate Research — a rare-earth element index family weighted by supply-chain criticality, permanent-magnet exposure, and market value." />
+  <meta name="description" content="A rare-earth element index family weighted by supply-chain criticality, permanent-magnet exposure, and market value." />
 
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Gilda+Display&display=swap" rel="stylesheet">
+  <!-- LaTeX math -->
+  <script>
+    window.MathJax = {
+      tex: { inlineMath: [['\\(', '\\)']], displayMath: [['$$', '$$']] },
+      options: { skipHtmlTags: ['script', 'noscript', 'style', 'textarea'] }
+    };
+  </script>
+  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js" async></script>
 
   <style>
-    :root {
-      /* Inherited Ariadne / QueensGate palette — greyscale + one restrained accent. */
-      --bg:          #161616;
-      --bg-elev:     #1b1b1b;
-      --bg-sunk:     #121212;
-      --line:        rgba(255, 255, 255, 0.12);
-      --line-soft:   rgba(255, 255, 255, 0.07);
-      --line-strong: rgba(255, 255, 255, 0.26);
-      --text:        #e6e6e6;
-      --muted:       #8a8a8a;
-      --faint:       #5c5c5c;
-      --accent:      #93b8b2;                 /* dusty teal — house accent, UI chrome */
-      --accent-dim:  rgba(147, 184, 178, 0.14);
-
-      /* Chart series — validated against #161616 dark surface (dataviz six-checks:
-         in-band L, chroma floor, CVD ΔE 55+, contrast >= 3:1). Colour follows the
-         entity, never its rank; each line is also direct-labelled. */
-      --scx:  #2f9a86;   /* Supply-Chain Criticality (flagship) — deep teal, house family */
-      --mag:  #c5871f;   /* Permanent-Magnet basket — amber */
-      --val:  #5170c9;   /* Market-Value / demand — indigo */
-      --scx-soft: rgba(47, 154, 134, 0.13);
-      --mag-soft: rgba(197, 135, 31, 0.13);
-      --val-soft: rgba(81, 112, 201, 0.13);
-
-      --display: "Gilda Display", Georgia, "Times New Roman", serif;
-      --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
-      --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-    }
-
+    :root { --scx: #1f77b4; --mag: #ff7f0e; --val: #2ca02c; }
     * { box-sizing: border-box; }
     html, body { margin: 0; padding: 0; }
     body {
-      font-family: var(--sans);
-      background: var(--bg);
-      color: var(--text);
-      -webkit-font-smoothing: antialiased;
-      line-height: 1.5;
+      background: #fff;
+      color: #111;
+      font-family: Arial, Helvetica, sans-serif;
+      font-size: 15px;
+      line-height: 1.55;
     }
-    a { color: inherit; text-decoration: none; }
+    .paper { max-width: 820px; margin: 0 auto; padding: 36px 24px 90px; }
 
-    .wrap { max-width: 1180px; margin: 0 auto; padding: 0 clamp(18px, 4vw, 40px); }
+    a { color: #0000ee; }
+    a:visited { color: #551a8b; }
 
-    /* Shared technical label */
-    .label {
-      font-family: var(--mono);
-      font-size: 10px;
-      letter-spacing: 1.6px;
-      text-transform: uppercase;
-      color: var(--muted);
-    }
+    h1 { font-size: 30px; font-weight: bold; margin: 6px 0 2px; }
+    .subtitle { font-size: 17px; color: #333; margin: 0 0 2px; }
+    .meta { font-size: 13px; color: #555; margin: 0 0 4px; }
+    h2 { font-size: 19px; margin: 30px 0 8px; }
+    h3 { font-size: 15px; margin: 18px 0 6px; }
+    p { margin: 0 0 12px; }
+    ul, ol { margin: 0 0 12px; padding-left: 24px; }
+    li { margin-bottom: 6px; }
+    hr { border: none; border-top: 1px solid #ccc; margin: 18px 0; }
+    .backlink { font-size: 14px; margin: 0 0 10px; }
+    .small { font-size: 12.5px; color: #555; }
+    .caption { font-size: 13px; color: #444; margin: 8px 0 0; }
+    .disclaimer { font-size: 12.5px; color: #444; margin-top: 26px; }
 
-    /* ---- Masthead ---- */
-    header.mast {
-      border-bottom: 1px solid var(--line);
-      background: linear-gradient(180deg, #181818, var(--bg));
-    }
-    .mast-inner {
-      display: flex; align-items: flex-end; justify-content: space-between;
-      gap: 20px; flex-wrap: wrap;
-      padding: 22px 0 24px;
-    }
-    .home {
-      font-family: var(--display); font-size: 19px; color: var(--text);
-      display: inline-flex; align-items: center; gap: 10px;
-    }
-    .home .arrow { font-family: var(--sans); font-size: 14px; color: var(--faint); transition: color .2s, transform .2s; }
-    .home:hover .arrow { color: var(--accent); transform: translateX(-3px); }
-    .home .sep { color: var(--faint); font-family: var(--sans); font-size: 13px; }
-    .home .proj { font-family: var(--mono); font-size: 12px; letter-spacing: 4px; text-transform: uppercase; color: var(--muted); }
+    /* Index summary table (also the figure legend / series toggle) */
+    table.idxsum { border-collapse: collapse; margin: 10px 0 4px; font-size: 14px; }
+    table.idxsum th, table.idxsum td { border: 1px solid #bbb; padding: 5px 10px; text-align: left; }
+    table.idxsum th { background: #f3f3f3; font-weight: bold; }
+    table.idxsum td.num { text-align: right; font-variant-numeric: tabular-nums; }
+    tr.tk { cursor: pointer; }
+    tr.tk:hover td { background: #f7f7f7; }
+    tr.tk.off td { color: #aaa; }
+    .dot { display: inline-block; width: 11px; height: 11px; margin-right: 7px; vertical-align: middle; }
+    .dot.scx { background: #1f77b4; }
+    .dot.mag { background: #ff7f0e; }
+    .dot.val { background: #2ca02c; }
+    .chg.up { color: #127a12; }
+    .chg.dn { color: #b32020; }
+    .chg .rng { color: #888; font-weight: normal; }
 
-    .mast-title { text-align: right; }
-    .mast-title h1 {
-      margin: 0; font-family: var(--mono); font-weight: 500;
-      font-size: clamp(16px, 2.4vw, 22px); letter-spacing: 7px; text-transform: uppercase; color: var(--text);
-    }
-    .mast-title .sub {
-      margin-top: 6px; font-family: var(--sans); font-weight: 300;
-      font-size: 12.5px; letter-spacing: 0.2px; color: var(--muted);
-    }
-    .asof {
-      display: inline-flex; align-items: center; gap: 7px; margin-top: 9px;
-      font-family: var(--mono); font-size: 9.5px; letter-spacing: 1px; text-transform: uppercase; color: var(--faint);
-    }
-    .asof .dot { width: 5px; height: 5px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 3px var(--accent-dim); }
-
-    /* ---- Lede ---- */
-    .lede {
-      padding: 30px 0 8px; max-width: 760px;
-    }
-    .lede p { margin: 0 0 14px; font-size: 15.5px; color: #cfcfca; }
-    .lede p.kicker {
-      font-family: var(--mono); font-size: 10px; letter-spacing: 2px; text-transform: uppercase;
-      color: var(--accent); margin-bottom: 16px;
-    }
-    .lede strong { color: var(--text); font-weight: 600; }
-
-    /* ---- Index ticker strip ---- */
-    .ticker {
-      display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px;
-      background: var(--line-soft); border: 1px solid var(--line);
-      margin: 26px 0 4px;
-    }
-    .tk {
-      background: var(--bg-elev); padding: 16px 18px 15px; cursor: pointer;
-      position: relative; transition: background .15s;
-      border-top: 2px solid transparent;
-    }
-    .tk:hover { background: #202020; }
-    .tk.off { opacity: 0.4; }
-    .tk[data-k="scx"] { border-top-color: var(--scx); }
-    .tk[data-k="mag"] { border-top-color: var(--mag); }
-    .tk[data-k="val"] { border-top-color: var(--val); }
-    .tk .tk-name { display: flex; align-items: center; gap: 9px; }
-    .tk .swatch { width: 9px; height: 9px; border-radius: 2px; flex: none; }
-    .tk[data-k="scx"] .swatch { background: var(--scx); }
-    .tk[data-k="mag"] .swatch { background: var(--mag); }
-    .tk[data-k="val"] .swatch { background: var(--val); }
-    .tk .code { font-family: var(--mono); font-size: 11px; letter-spacing: 1px; color: var(--text); font-weight: 500; }
-    .tk .full { font-family: var(--sans); font-size: 10.5px; color: var(--muted); margin-top: 5px; letter-spacing: 0.1px; }
-    .tk .lvl {
-      font-family: var(--mono); font-size: 25px; font-weight: 500; color: var(--text);
-      margin-top: 12px; letter-spacing: 0.3px; font-variant-numeric: tabular-nums;
-    }
-    .tk .chg { font-family: var(--mono); font-size: 11.5px; margin-top: 3px; font-variant-numeric: tabular-nums; letter-spacing: 0.2px; }
-    .tk .chg.up { color: #6fbf8f; }
-    .tk .chg.dn { color: #c58585; }
-    .tk .chg .rng { color: var(--faint); }
-    .tk .off-tag { position: absolute; top: 14px; right: 16px; font-family: var(--mono); font-size: 8.5px; letter-spacing: 1px; color: var(--faint); text-transform: uppercase; display: none; }
-    .tk.off .off-tag { display: block; }
-
-    /* ---- Chart module ---- */
-    .chart-card {
-      border: 1px solid var(--line); background: var(--bg-elev);
-      margin: 20px 0 8px;
-    }
-    .chart-toolbar {
-      display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
-      padding: 13px 16px; border-bottom: 1px solid var(--line-soft);
-    }
-    .readout { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; margin-right: auto; min-height: 22px; }
-    .readout .r-date { font-family: var(--mono); font-size: 11px; letter-spacing: 1px; color: var(--muted); text-transform: uppercase; }
-    .readout .r-item { font-family: var(--mono); font-size: 12px; font-variant-numeric: tabular-nums; }
-    .readout .r-item b { font-weight: 600; }
-    .readout .r-item .rl { color: var(--faint); }
-
-    .seg { display: inline-flex; border: 1px solid var(--line); }
+    /* Figure / chart */
+    .figure { margin: 16px 0 6px; }
+    .toolbar { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin-bottom: 6px; }
+    .readout { margin-right: auto; font-size: 13px; min-height: 20px; }
+    .readout .r-date { color: #555; margin-right: 8px; }
+    .readout .r-item { margin-right: 12px; font-variant-numeric: tabular-nums; }
+    .readout .r-item .rl { color: #777; }
+    .seg { display: inline-flex; }
     .seg button {
-      background: transparent; color: var(--muted); border: none;
-      padding: 6px 11px; font-family: var(--mono); font-size: 11px; letter-spacing: 0.5px;
-      cursor: pointer; transition: color .12s, background .12s;
+      font-family: inherit; font-size: 12px; border: 1px solid #999; background: #fff;
+      color: #222; padding: 3px 9px; cursor: pointer; margin-left: -1px;
     }
-    .seg button + button { border-left: 1px solid var(--line); }
-    .seg button:hover { color: var(--text); }
-    .seg button.active { color: var(--accent); background: var(--accent-dim); }
+    .seg button.active { background: #333; color: #fff; border-color: #333; }
 
-    .chart-body { position: relative; padding: 8px 6px 4px; }
-    #chart { display: block; width: 100%; height: auto; touch-action: none; }
-    #chart .grid-line { stroke: var(--line-soft); stroke-width: 1; }
-    #chart .axis-base { stroke: var(--line); stroke-width: 1; }
-    #chart text { font-family: var(--mono); fill: var(--faint); font-size: 10px; letter-spacing: 0.4px; }
-    #chart text.ytick { fill: var(--muted); }
-    #chart .serie-area { opacity: 0.9; }
-    #chart .serie-line { fill: none; stroke-width: 1.8; }
-    #chart .serie-line.scx { stroke: var(--scx); }
-    #chart .serie-line.mag { stroke: var(--mag); }
-    #chart .serie-line.val { stroke: var(--val); }
-    #chart .crosshair-v { stroke: var(--line-strong); stroke-width: 1; stroke-dasharray: 3 3; }
-    #chart .dot { stroke: var(--bg-elev); stroke-width: 2; }
-    #chart .dot.scx { fill: var(--scx); }
-    #chart .dot.mag { fill: var(--mag); }
-    #chart .dot.val { fill: var(--val); }
-    #chart .end-label { font-size: 10px; font-weight: 600; letter-spacing: 0.3px; }
-    #chart .end-label.scx { fill: var(--scx); }
-    #chart .end-label.mag { fill: var(--mag); }
-    #chart .end-label.val { fill: var(--val); }
-    .era-band { fill: rgba(255,255,255,0.018); }
-    .era-label { fill: var(--faint); font-size: 9px; letter-spacing: 0.6px; text-transform: uppercase; }
-
-    .chart-foot {
-      display: flex; align-items: center; justify-content: space-between; gap: 14px; flex-wrap: wrap;
-      padding: 9px 16px 12px; border-top: 1px solid var(--line-soft);
-      font-family: var(--mono); font-size: 9.5px; letter-spacing: 0.6px; color: var(--faint); text-transform: uppercase;
+    #chart {
+      width: 100%; height: auto; display: block; background: #fff;
+      border: 1px solid #ccc; touch-action: none;
     }
-    .chart-foot .rebase { color: var(--muted); }
+    #chart .grid-line { stroke: #e6e6e6; stroke-width: 1; }
+    #chart .axis-base { stroke: #888; stroke-width: 1; }
+    #chart text { font-family: Arial, Helvetica, sans-serif; fill: #555; font-size: 10px; }
+    #chart text.ytick { fill: #555; }
+    #chart .serie-line { fill: none; stroke-width: 1.5; }
+    #chart .serie-line.scx { stroke: #1f77b4; }
+    #chart .serie-line.mag { stroke: #ff7f0e; }
+    #chart .serie-line.val { stroke: #2ca02c; }
+    #chart .crosshair-v { stroke: #999; stroke-width: 1; stroke-dasharray: 3 3; }
+    #chart .dot { stroke: #fff; stroke-width: 1.5; }
+    #chart .dot.scx { fill: #1f77b4; }
+    #chart .dot.mag { fill: #ff7f0e; }
+    #chart .dot.val { fill: #2ca02c; }
+    .chart-foot { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; font-size: 11.5px; color: #777; margin-top: 4px; }
 
-    /* ---- Section scaffolding ---- */
-    section.blk { padding: 34px 0; border-top: 1px solid var(--line-soft); }
-    .blk-h {
-      font-family: var(--mono); font-size: 10px; letter-spacing: 2px; text-transform: uppercase;
-      color: var(--accent); margin: 0 0 6px;
-    }
-    .blk-title {
-      font-family: var(--display); font-size: clamp(20px, 3vw, 27px); color: var(--text);
-      margin: 0 0 18px; font-weight: 400; letter-spacing: 0.2px;
-    }
-    .prose { max-width: 760px; }
-    .prose p { margin: 0 0 15px; font-size: 14.5px; color: #c8c8c3; }
-    .prose p .accent { color: var(--accent); }
-    .prose strong { color: var(--text); font-weight: 600; }
-    .prose h3 {
-      font-family: var(--mono); font-size: 11px; letter-spacing: 1.4px; text-transform: uppercase;
-      color: var(--text); margin: 26px 0 10px;
-    }
-    .prose ul { margin: 0 0 15px; padding-left: 0; list-style: none; }
-    .prose li { position: relative; padding-left: 20px; margin-bottom: 9px; font-size: 14px; color: #c2c2bd; }
-    .prose li::before { content: ""; position: absolute; left: 3px; top: 9px; width: 5px; height: 5px; background: var(--line-strong); }
-    .prose li b { color: var(--text); font-weight: 600; }
+    /* Equations */
+    .eqn { overflow-x: auto; margin: 6px 0 14px; }
 
-    /* Formula block */
-    .formula {
-      background: var(--bg-sunk); border: 1px solid var(--line-soft); border-left: 2px solid var(--accent);
-      padding: 18px 20px; margin: 8px 0 20px; overflow-x: auto;
-    }
-    .formula .eq {
-      font-family: var(--mono); font-size: 15px; color: var(--text); letter-spacing: 0.3px;
-      display: flex; align-items: center; gap: 10px; white-space: nowrap;
-    }
-    .formula .frac { display: inline-flex; flex-direction: column; text-align: center; vertical-align: middle; }
-    .formula .frac .num { border-bottom: 1px solid var(--line-strong); padding: 0 8px 3px; }
-    .formula .frac .den { padding: 3px 8px 0; }
-    .formula .whereis { margin-top: 14px; font-family: var(--sans); font-size: 12.5px; color: var(--muted); line-height: 1.7; }
-    .formula .whereis code { font-family: var(--mono); color: var(--accent); font-size: 12px; }
+    /* Constituents table */
+    .tbl-wrap { overflow-x: auto; }
+    table#const { border-collapse: collapse; width: 100%; min-width: 640px; font-size: 13px; margin-top: 6px; }
+    table#const th, table#const td { border: 1px solid #ccc; padding: 4px 8px; text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+    table#const th { background: #f3f3f3; font-weight: bold; }
+    table#const th.l, table#const td.l { text-align: left; }
+    .el-sym { font-weight: bold; margin-right: 6px; }
+    .el-name { color: #333; font-weight: normal; }
+    .wbar { display: none; }               /* no decorative weight bars */
+    .qflag { font-style: italic; color: #666; font-weight: normal; }
+    td.muted, .muted { color: #999; }
 
-    /* Quantity-vector cards */
-    .qvecs { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1px; background: var(--line-soft); border: 1px solid var(--line); margin: 6px 0 8px; }
-    .qvec { background: var(--bg-elev); padding: 16px 18px; }
-    .qvec .qv-code { font-family: var(--mono); font-size: 12px; font-weight: 500; letter-spacing: 0.5px; display: flex; align-items: center; gap: 8px; }
-    .qvec .qv-code .swatch { width: 8px; height: 8px; border-radius: 2px; }
-    .qvec[data-k="scx"] .swatch { background: var(--scx); }
-    .qvec[data-k="mag"] .swatch { background: var(--mag); }
-    .qvec[data-k="val"] .swatch { background: var(--val); }
-    .qvec .qv-q { font-family: var(--mono); font-size: 12px; color: var(--text); margin: 11px 0 8px; background: var(--bg-sunk); padding: 8px 10px; border: 1px solid var(--line-soft); overflow-x: auto; white-space: nowrap; }
-    .qvec .qv-desc { font-size: 12.5px; color: var(--muted); }
+    .references { padding-left: 22px; }
+    .references li { font-size: 13.5px; }
 
-    /* ---- Constituents table ---- */
-    .tbl-wrap { overflow-x: auto; border: 1px solid var(--line); }
-    table.const { border-collapse: collapse; width: 100%; min-width: 720px; font-variant-numeric: tabular-nums; }
-    table.const th, table.const td { padding: 9px 12px; text-align: right; border-bottom: 1px solid var(--line-soft); white-space: nowrap; }
-    table.const th {
-      font-family: var(--mono); font-size: 9px; letter-spacing: 1px; text-transform: uppercase;
-      color: var(--muted); font-weight: 500; background: var(--bg-elev); position: sticky; top: 0;
-      border-bottom: 1px solid var(--line);
-    }
-    table.const th.l, table.const td.l { text-align: left; }
-    table.const td { font-family: var(--mono); font-size: 12px; color: #cbcbc6; }
-    table.const tr:hover td { background: rgba(255,255,255,0.02); }
-    table.const .el-sym { color: var(--text); font-weight: 600; display: inline-block; width: 30px; }
-    table.const .el-name { color: var(--muted); font-family: var(--sans); font-size: 12px; }
-    table.const .heavy { color: var(--accent); }
-    table.const .bar-cell { position: relative; }
-    table.const .wbar { display: inline-block; height: 7px; vertical-align: middle; margin-left: 6px; border-radius: 1px; }
-    table.const .wbar.scx { background: var(--scx); }
-    table.const .wbar.mag { background: var(--mag); }
-    table.const .wbar.val { background: var(--val); }
-    table.const td.muted { color: var(--faint); }
-    .qflag { font-family: var(--mono); font-size: 8.5px; letter-spacing: 0.5px; text-transform: uppercase; padding: 2px 6px; border: 1px solid var(--line); border-radius: 2px; color: var(--muted); }
-    .qflag.reported { color: #7fae8f; border-color: rgba(127,174,143,0.35); }
-    .qflag.thin { color: #c2a35f; border-color: rgba(194,163,95,0.35); }
-    .qflag.modeled { color: #a98fc0; border-color: rgba(169,143,192,0.35); }
-    .qflag.none { color: var(--faint); }
-    .tbl-note { font-family: var(--mono); font-size: 9.5px; letter-spacing: 0.4px; color: var(--faint); margin-top: 10px; line-height: 1.7; }
-    .tbl-legend { display: flex; gap: 16px; flex-wrap: wrap; margin: 12px 0 0; }
-    .tbl-legend span { display: inline-flex; align-items: center; gap: 6px; }
-
-    /* Sources */
-    .sources { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; margin-top: 6px; }
-    .src { border: 1px solid var(--line-soft); padding: 13px 15px; background: var(--bg-elev); }
-    .src .src-t { font-family: var(--mono); font-size: 11px; color: var(--text); letter-spacing: 0.4px; }
-    .src .src-d { font-size: 12px; color: var(--muted); margin-top: 5px; }
-
-    .disclaimer {
-      margin-top: 26px; padding: 16px 18px; border: 1px solid var(--line-soft); background: var(--bg-sunk);
-      font-size: 12px; color: var(--muted); line-height: 1.7;
-    }
-    .disclaimer b { color: var(--text); }
-
-    footer.foot {
-      border-top: 1px solid var(--line); margin-top: 10px; padding: 26px 0 46px;
-      display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap;
-    }
-    footer .fmark { font-family: var(--display); font-size: 16px; color: var(--muted); }
-    footer .fmeta { font-family: var(--mono); font-size: 9.5px; letter-spacing: 0.8px; color: var(--faint); text-transform: uppercase; text-align: right; }
-
-    @media (max-width: 680px) {
-      .ticker { grid-template-columns: 1fr; }
-      .mast-title { text-align: left; }
-      .mast-inner { align-items: flex-start; }
+    @media (max-width: 620px) {
       .readout { width: 100%; }
+      body { font-size: 14px; }
     }
-    @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
   </style>
 </head>
 <body>
-  <header class="mast">
-    <div class="wrap mast-inner">
-      <div>
-        <a class="home" href="/">
-          <span class="arrow">&larr;</span><span>QueensGate</span>
-          <span class="sep">/</span><span class="proj">Hephaestus</span>
-        </a>
-      </div>
-      <div class="mast-title">
-        <h1>Hephaestus</h1>
-        <div class="sub">A rare-earth element index family</div>
-        <div class="asof"><span class="dot"></span><span id="asof-txt">Data as of —</span></div>
-      </div>
-    </div>
-  </header>
+  <div class="paper">
+    <p class="backlink"><a href="/">&larr; QueensGate Research</a></p>
+    <h1>Hephaestus</h1>
+    <div class="subtitle">A rare-earth element index family</div>
+    <div class="meta">QueensGate Research &middot; data as of <span id="asof-txt">—</span></div>
+    <hr>
 
-  <main class="wrap">
-    <div class="lede">
-      <p class="kicker">Critical-Minerals Research</p>
-      <p>Rare earths have no single price. The seventeen lanthanides-plus trade in
-        opaque, desk-quoted oxide markets where a kilogram of <strong>lanthanum</strong>
-        costs less than a coffee and a kilogram of <strong>terbium</strong> costs more
-        than an ounce of gold. Hephaestus resolves that heterogeneity into three
-        transparent, fixed-basket indices — each a different lens on the same question:
-        <strong>how exposed is the modern economy to this supply chain, and what is that
-        exposure worth?</strong></p>
-      <p>Every index below is a proper Laspeyres price index built on the identical
-        estimator. They differ only in the <em>basket</em> — the quantity vector that
-        encodes the weighting philosophy. Toggle a series on the strip; hover the chart
-        to read every index at any month. The construction is fully specified beneath the
-        chart, and every price anchor is sourced.</p>
-    </div>
+    <p>Rare earths have no single price. The seventeen lanthanides-plus trade in opaque,
+      desk-quoted oxide markets where a kilogram of lanthanum costs less than a coffee and a
+      kilogram of terbium costs more than an ounce of gold. Hephaestus reduces that to three
+      indices, each a different way of asking the same question: how exposed is the modern
+      economy to this supply chain, and what is that exposure worth?</p>
 
-    <!-- Index ticker strip -->
-    <div class="ticker" id="ticker">
-      <div class="tk" data-k="scx">
-        <div class="tk-name"><span class="swatch"></span><span class="code">QG-SCX</span></div>
-        <div class="full">Supply-Chain Criticality &middot; flagship</div>
-        <div class="lvl" id="lvl-scx">—</div>
-        <div class="chg" id="chg-scx">—</div>
-        <div class="off-tag">hidden</div>
-      </div>
-      <div class="tk" data-k="mag">
-        <div class="tk-name"><span class="swatch"></span><span class="code">QG-MAG</span></div>
-        <div class="full">Permanent-Magnet basket &middot; NdPr&middot;Dy&middot;Tb</div>
-        <div class="lvl" id="lvl-mag">—</div>
-        <div class="chg" id="chg-mag">—</div>
-        <div class="off-tag">hidden</div>
-      </div>
-      <div class="tk" data-k="val">
-        <div class="tk-name"><span class="swatch"></span><span class="code">QG-VAL</span></div>
-        <div class="full">Market-Value / demand weighted</div>
-        <div class="lvl" id="lvl-val">—</div>
-        <div class="chg" id="chg-val">—</div>
-        <div class="off-tag">hidden</div>
-      </div>
-    </div>
+    <p>Every index below is a fixed-basket (Laspeyres) price index built from the same estimator.
+      They differ only in the <em>basket</em> — the quantity vector that encodes the weighting.
+      The three current levels are below; the figure and method follow.</p>
 
-    <!-- Chart -->
-    <div class="chart-card">
-      <div class="chart-toolbar">
-        <div class="readout" id="readout">
-          <span class="r-date" id="r-date">latest</span>
-        </div>
+    <table class="idxsum" id="ticker">
+      <thead>
+        <tr><th>Index</th><th>Level</th><th>Change since Jan 2010</th></tr>
+      </thead>
+      <tbody>
+        <tr class="tk" data-k="scx">
+          <td><span class="dot scx"></span>QG-SCX — Supply-Chain Criticality (flagship)</td>
+          <td class="num" id="lvl-scx">—</td>
+          <td id="chg-scx">—</td>
+        </tr>
+        <tr class="tk" data-k="mag">
+          <td><span class="dot mag"></span>QG-MAG — Permanent-Magnet basket (Nd·Pr·Dy·Tb)</td>
+          <td class="num" id="lvl-mag">—</td>
+          <td id="chg-mag">—</td>
+        </tr>
+        <tr class="tk" data-k="val">
+          <td><span class="dot val"></span>QG-VAL — Market-value / demand weighted</td>
+          <td class="num" id="lvl-val">—</td>
+          <td id="chg-val">—</td>
+        </tr>
+      </tbody>
+    </table>
+    <p class="small">Click a row to hide or show that series in the figure.</p>
+
+    <div class="figure">
+      <div class="toolbar">
+        <div class="readout" id="readout"><span class="r-date" id="r-date">latest</span></div>
         <div class="seg" id="scale-seg">
-          <button data-scale="log" class="active">Log</button>
-          <button data-scale="lin">Linear</button>
+          <button data-scale="log" class="active">log</button>
+          <button data-scale="lin">linear</button>
         </div>
         <div class="seg" id="range-seg">
           <button data-range="12">1Y</button>
           <button data-range="36">3Y</button>
           <button data-range="60">5Y</button>
           <button data-range="120">10Y</button>
-          <button data-range="all" class="active">Max</button>
+          <button data-range="all" class="active">max</button>
         </div>
       </div>
-      <div class="chart-body">
-        <svg id="chart" viewBox="0 0 1000 440" preserveAspectRatio="none" aria-label="Rare-earth index performance chart"></svg>
-      </div>
+      <svg id="chart" viewBox="0 0 1000 440" preserveAspectRatio="none" aria-label="Rare-earth index performance chart"></svg>
       <div class="chart-foot">
-        <span class="rebase" id="rebase-note">Index = 100 at Jan 2010</span>
-        <span>Monthly &middot; oxide baskets, FOB China &middot; log scale</span>
+        <span id="rebase-note">Index = 100 at Jan 2010</span>
+        <span>monthly · oxide baskets, FOB China · log scale</span>
       </div>
+      <p class="caption"><b>Figure 1.</b> The three Hephaestus indices, rebased to 100 at January 2010,
+        monthly, log scale. Hover to scrub (the crosshair snaps to a month); zoom with the buttons —
+        at 1Y and 3Y the axis resolves to months and quarters. On a linear axis the 2011 export-quota
+        spike flattens everything after it, so log is the default.</p>
     </div>
 
-    <p class="tbl-note" style="margin-bottom:0">
-      Hover or focus the chart to scrub. Click a card on the strip to add or remove a series.
-      Log scale is default — on a linear axis the 2011 export-quota super-spike compresses
-      every later move to a flat line.
-    </p>
+    <h2>1. Method</h2>
+    <p>Each index is a fixed-quantity (Laspeyres) price index — the same construction as the S&amp;P GSCI
+      or a consumer price index. A representative basket of physical quantities is held constant and we
+      track the changing cost of buying it, so a move in the index is pure price, not a rebalancing
+      artefact:</p>
 
-    <!-- Methodology -->
-    <section class="blk">
-      <div class="blk-h">Methodology</div>
-      <h2 class="blk-title">One estimator, three baskets</h2>
-      <div class="prose">
-        <p>Each Hephaestus index is a <strong>fixed-quantity (Laspeyres) price index</strong>
-          — structurally identical to the S&amp;P GSCI or a consumer price index. We hold a
-          representative basket of physical quantities constant and track the changing cost
-          of buying it. Because the basket is fixed, movement in the index is <em>pure price</em>,
-          never a rebalancing artefact.</p>
+    <div class="eqn">
+      $$ I_b(t) \;=\; 100 \times \frac{\sum_i q_i^{(b)}\, p_i(t)}{\sum_i q_i^{(b)}\, p_i(t_0)} $$
+    </div>
 
-        <div class="formula">
-          <div class="eq">
-            <span>I<sub>b</sub>(t) = 100 &times;</span>
-            <span class="frac">
-              <span class="num">&Sigma;<sub>i</sub> q<sub>i</sub><sup>(b)</sup> &middot; p<sub>i</sub>(t)</span>
-              <span class="den">&Sigma;<sub>i</sub> q<sub>i</sub><sup>(b)</sup> &middot; p<sub>i</sub>(t<sub>0</sub>)</span>
-            </span>
-          </div>
-          <div class="whereis">
-            <code>p<sub>i</sub>(t)</code> = oxide price of element <code>i</code> in month <code>t</code> ($/kg REO, FOB China) &middot;
-            <code>q<sub>i</sub><sup>(b)</sup></code> = fixed basket quantity for index <code>b</code> &middot;
-            <code>t<sub>0</sub></code> = January 2010 (rebased to 100). The three indices share this
-            equation exactly and differ only in the quantity vector <code>q<sup>(b)</sup></code> below.
-          </div>
-        </div>
+    <p>where \(p_i(t)\) is the oxide price of element \(i\) in month \(t\) (\$/kg REO, FOB China),
+      \(q_i^{(b)}\) is the fixed basket quantity for index \(b\), and \(t_0\) is January 2010
+      (rebased to 100). The three indices share this equation and differ only in the basket
+      \(q^{(b)}\):</p>
 
-        <p>Choosing <code style="font-family:var(--mono);color:var(--accent)">q</code> is the
-          entire editorial act. Three vectors, three questions:</p>
+    <ul>
+      <li><b>QG-SCX</b> (Supply-Chain Criticality, the flagship): \(q_i = C_i\, S_i\, E_i\), where
+        \(C_i\) is global annual consumption, \(S_i\) is supply concentration (share of refined output
+        from the single dominant jurisdiction, an HHI proxy), and \(E_i\) is economic criticality
+        (end-use value, substitutability, defence relevance). Over-weights the fragile, hard-to-replace
+        links.</li>
+      <li><b>QG-MAG</b> (Permanent-Magnet basket): \(q_i = M_i\) for Nd, Pr, Dy, Tb and \(0\) otherwise,
+        with \(M_i\) the magnet-sector consumption. Just the NdFeB metals that drive EV motors, wind
+        turbines and precision-guided munitions.</li>
+      <li><b>QG-VAL</b> (Market value / demand): \(q_i = C_i\), raw consumption in tonnes. The neutral
+        cap-weight analogue — what the market physically buys.</li>
+    </ul>
 
-        <div class="qvecs">
-          <div class="qvec" data-k="scx">
-            <div class="qv-code"><span class="swatch"></span>QG-SCX &middot; Supply-Chain Criticality</div>
-            <div class="qv-q">q<sub>i</sub> = C<sub>i</sub> &times; S<sub>i</sub> &times; E<sub>i</sub></div>
-            <div class="qv-desc">Global consumption <b style="color:#cbcbc6">C</b> tilted by supply
-              concentration <b style="color:#cbcbc6">S</b> (share of refined output from the single
-              dominant jurisdiction, an HHI proxy) and economic criticality <b style="color:#cbcbc6">E</b>
-              (end-use value, substitutability, defence relevance). Over-weights the fragile,
-              hard-to-replace links. <em>The flagship — it answers the brief directly.</em></div>
-          </div>
-          <div class="qvec" data-k="mag">
-            <div class="qv-code"><span class="swatch"></span>QG-MAG &middot; Permanent-Magnet basket</div>
-            <div class="qv-q">q<sub>i</sub> = M<sub>i</sub>  (Nd, Pr, Dy, Tb only)</div>
-            <div class="qv-desc">Magnet-sector consumption <b style="color:#cbcbc6">M</b>, non-zero only
-              for the four NdFeB metals that drive EV traction motors, wind turbines and
-              precision-guided munitions. Everything else is zero. The purest read on where the
-              money and the strategic risk actually concentrate.</div>
-          </div>
-          <div class="qvec" data-k="val">
-            <div class="qv-code"><span class="swatch"></span>QG-VAL &middot; Market-Value / demand</div>
-            <div class="qv-q">q<sub>i</sub> = C<sub>i</sub>  (annual consumption)</div>
-            <div class="qv-desc">Raw global annual consumption <b style="color:#cbcbc6">C</b> in tonnes
-              of oxide — no tilt. The neutral, cap-weight analogue: what the market physically buys.
-              Dominated in value terms by neodymium, with lanthanum/cerium volume as texture.</div>
-          </div>
-        </div>
+    <h3>Why a fixed basket</h3>
+    <p>Value-weighting with live prices lets a spiking element inflate its own weight and double-count
+      the move (a Paasche bias). Fixing quantities at their structural, consumption-based levels keeps
+      each index an honest price signal. The trade-off — weights drift from current market value as
+      prices move — is the right one for a research benchmark, and is stated rather than hidden.</p>
 
-        <h3>Why a fixed basket</h3>
-        <p>Value-weighting with live prices would let a spiking element inflate its own weight and
-          double-count the move (a Paasche bias). Fixing quantities at their structural,
-          consumption-based levels means each index is an honest <em>price</em> signal. The trade-off
-          — weights drift from current market value as prices move — is the correct one for a
-          research benchmark, and it is disclosed rather than hidden.</p>
+    <h2>2. Data</h2>
+    <p>There is no live tape for rare-earth oxides; prices are published periodically by specialist
+      desks behind paywalls. Hephaestus is built from dated public anchor prints at the finest
+      resolution each market honestly supports — quarterly-to-monthly for the liquid magnet oxides
+      (Nd, Pr, Dy, Tb) that dominate every index, denser through the 2010–11 spike and the 2021–22
+      rally, and sparser for thin markets that do not trade every month. The monthly grid between
+      anchors is filled by log-linear interpolation. Intra-anchor volatility is deliberately not
+      fabricated: a straight segment on a log axis means "not observed this month." The chart's
+      texture is real structure — different elements turning in different months — not invented noise.
+      Resolution therefore varies by liquidity, shown by the flag in Table 1:</p>
+    <ul>
+      <li><b>reported</b> — liquid, regularly-quoted oxide market; quarterly-to-monthly anchors that track published prints closely.</li>
+      <li><b>thin</b> — genuine but illiquid and sparsely quoted; coarser anchors, wider uncertainty.</li>
+      <li><b>modeled</b> — negligible traded volume (Sc, Tm); a documented estimate at coarse resolution.</li>
+      <li><b>promethium (Pm)</b> has no commercial market — radioactive, half-life in years — and is excluded from every index.</li>
+    </ul>
 
-        <h3>Data &amp; its limits</h3>
-        <p>There is no live tape for rare-earth oxides. Prices are published periodically by
-          specialist desks behind paywalls. Hephaestus is therefore built on <strong>dated public
-          anchor prints</strong> — the documented turning points of the market — with monthly values
-          filled by <strong>log-linear interpolation between anchors</strong>. We deliberately do
-          <em>not</em> fabricate intra-anchor volatility: a straight segment on a log axis is an
-          honest "we did not observe this monthly." The chart's texture is real structure —
-          different elements peaking in different years — not invented noise.</p>
-        <ul>
-          <li><b>Reported</b> — element has a liquid, regularly-quoted oxide market; anchors track published prints closely.</li>
-          <li><b>Thin</b> — genuine market but illiquid and sparsely quoted; anchors are best-available prints, wider uncertainty.</li>
-          <li><b>Modeled</b> — negligible traded volume (Sc, Tm); series is a documented estimate, flagged in the table.</li>
-          <li><b>Promethium (Pm)</b> has no commercial market — radioactive, half-life in years — and is <b>excluded from every index</b>.</li>
-        </ul>
-      </div>
-    </section>
+    <h2>3. Constituents</h2>
+    <p>The seventeen rare earths and their weight in each index. Weights are effective base-date value
+      shares (\(q_i\, p_i(t_0)\) normalised) — each element's contribution at the January 2010 rebasing.</p>
+    <div class="tbl-wrap">
+      <table id="const">
+        <thead>
+          <tr>
+            <th class="l">Z</th>
+            <th class="l">Element</th>
+            <th class="l">Class</th>
+            <th>Price now ($/kg)</th>
+            <th>Since '10</th>
+            <th>QG-SCX</th>
+            <th>QG-MAG</th>
+            <th>QG-VAL</th>
+            <th class="l">Price data</th>
+          </tr>
+        </thead>
+        <tbody id="const-body"></tbody>
+      </table>
+    </div>
+    <p class="caption"><b>Table 1.</b> Constituents ordered by QG-VAL weight. Prices are the latest
+      monthly oxide anchors, rounded. "Heavy" / "Light" is the standard geochemical split. Weight
+      columns are percentages of each index at base date; "—" means the element is not in that basket.</p>
 
-    <!-- Constituents -->
-    <section class="blk">
-      <div class="blk-h">Constituents &amp; weights</div>
-      <h2 class="blk-title">The seventeen, and how each index sees them</h2>
-      <div class="tbl-wrap">
-        <table class="const" id="const">
-          <thead>
-            <tr>
-              <th class="l">Z</th>
-              <th class="l">Element</th>
-              <th class="l">Class</th>
-              <th>Price now<br>$/kg REO</th>
-              <th>Since '10</th>
-              <th class="l" style="min-width:150px">QG-SCX weight</th>
-              <th class="l" style="min-width:150px">QG-MAG weight</th>
-              <th class="l" style="min-width:150px">QG-VAL weight</th>
-              <th class="l">Price data</th>
-            </tr>
-          </thead>
-          <tbody id="const-body"></tbody>
-        </table>
-      </div>
-      <div class="tbl-legend label">
-        <span><span class="qflag reported">Reported</span> liquid oxide market</span>
-        <span><span class="qflag thin">Thin</span> illiquid / sparse</span>
-        <span><span class="qflag modeled">Modeled</span> negligible volume</span>
-        <span><span class="heavy" style="font-family:var(--mono)">&#9632;</span> heavy REE</span>
-      </div>
-      <div class="tbl-note">
-        Weights are effective base-date value shares (q<sub>i</sub>&middot;p<sub>i</sub>(t<sub>0</sub>) normalised) — the
-        contribution of each element to its index at the January 2010 rebasing. Prices are the
-        latest monthly oxide anchors, rounded.
-      </div>
-    </section>
+    <h2>References</h2>
+    <ol class="references">
+      <li>USGS, <i>Mineral Commodity Summaries</i> — annual rare-earth pricing, production shares and consumption estimates.</li>
+      <li>Shanghai Metals Market (SMM) — published Chinese domestic oxide prints, used for turning-point anchors.</li>
+      <li>Company filings, MP Materials and Lynas 10-K / annual reports — realised NdPr and separated-oxide prices as a cross-check.</li>
+      <li>Adamas Intelligence and trade press — end-use consumption splits informing the criticality and magnet baskets.</li>
+    </ol>
 
-    <!-- Sources -->
-    <section class="blk">
-      <div class="blk-h">Provenance</div>
-      <h2 class="blk-title">Where the numbers come from</h2>
-      <div class="prose" style="max-width:760px">
-        <p>Anchor prices are reconstructed from public, citable references and cross-checked against
-          the well-documented shape of the market — the 2010–11 export-quota spike, the post-2015
-          europium collapse as LED phosphors displaced fluorescent lamps, the 2021–22 magnet-metal
-          rally, and the 2023–24 oversupply drawdown.</p>
-      </div>
-      <div class="sources">
-        <div class="src"><div class="src-t">USGS Mineral Commodity Summaries</div><div class="src-d">Annual rare-earth pricing, production shares and consumption estimates — the public backbone.</div></div>
-        <div class="src"><div class="src-t">Shanghai Metals Market (SMM)</div><div class="src-d">Published Chinese domestic oxide prints referenced for turning-point anchors.</div></div>
-        <div class="src"><div class="src-t">Company filings (MP, Lynas)</div><div class="src-d">10-K / annual-report realised prices for NdPr and separated oxides as a market cross-check.</div></div>
-        <div class="src"><div class="src-t">Adamas Intelligence / trade press</div><div class="src-d">End-use consumption splits informing the criticality and magnet baskets.</div></div>
-      </div>
-      <div class="disclaimer">
-        <b>Disclaimer.</b> Hephaestus is a research and portfolio artefact by QueensGate, not
-        investment advice, a tradable product, or a live market data feed. Oxide prices are periodic
-        public anchors with monthly interpolation, not tick data; absolute levels carry meaningful
-        uncertainty and thin/modeled series more so. The value is in the <b>construction and the
-        relative dynamics</b>, which are reproducible from the specification above.
-      </div>
-    </section>
-  </main>
+    <p class="disclaimer"><b>Disclaimer.</b> Hephaestus is a research and portfolio exercise, not
+      investment advice, a tradable product, or a live data feed. Oxide prices are periodic public
+      anchors with monthly interpolation, not tick data; absolute levels carry real uncertainty and
+      thin/modeled series more so. The value is in the construction and the relative dynamics, which
+      are reproducible from the method above.</p>
 
-  <footer class="foot wrap">
-    <div class="fmark">QueensGate</div>
-    <div class="fmeta">Hephaestus &middot; Rare-Earth Index Family<br><span id="foot-asof">—</span></div>
-  </footer>
+    <hr>
+    <p class="small">QueensGate Research &middot; Hephaestus &middot; <span id="foot-asof">—</span></p>
+  </div>
 
   <script src="/projects/hephaestus/app.js"></script>
 </body>
