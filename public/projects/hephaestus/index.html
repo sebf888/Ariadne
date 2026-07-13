@@ -122,19 +122,20 @@
   <div class="paper">
     <p class="backlink"><a href="/">&larr; QueensGate Research</a></p>
     <h1>Hephaestus</h1>
-    <div class="subtitle">A rare-earth element index family</div>
-    <div class="meta">QueensGate Research &middot; data as of <span id="asof-txt">—</span></div>
+    <div class="subtitle">A set of rare-earth element price indices</div>
+    <div class="meta">Sebastian Fioravante &middot; data as of <span id="asof-txt">—</span></div>
     <hr>
 
-    <p>Rare earths have no single price. The seventeen lanthanides-plus trade in opaque,
-      desk-quoted oxide markets where a kilogram of lanthanum costs less than a coffee and a
-      kilogram of terbium costs more than an ounce of gold. Hephaestus reduces that to three
-      indices, each a different way of asking the same question: how exposed is the modern
-      economy to this supply chain, and what is that exposure worth?</p>
+    <p>Rare earths don't really have a single price. The seventeen elements trade as separate
+      oxides in fairly thin, desk-quoted markets rather than on an exchange, and the prices span
+      an enormous range: lanthanum oxide sells for under a dollar a kilogram while terbium oxide
+      runs past a thousand. To make sense of the sector as a whole I built three indices over
+      those oxides. Each one weights the elements differently, so together they give three
+      readings of how the sector has moved.</p>
 
-    <p>Every index below is a fixed-basket (Laspeyres) price index built from the same estimator.
-      They differ only in the <em>basket</em> — the quantity vector that encodes the weighting.
-      The three current levels are below; the figure and method follow.</p>
+    <p>All three are fixed-basket (Laspeyres) price indices computed the same way. The only thing
+      that changes between them is the <em>basket</em>, the quantity vector that sets the weights.
+      Current levels are in the table below; the figure and the method come after it.</p>
 
     <table class="idxsum" id="ticker">
       <thead>
@@ -142,7 +143,7 @@
       </thead>
       <tbody>
         <tr class="tk" data-k="scx">
-          <td><span class="dot scx"></span>QG-SCX — Supply-Chain Criticality (flagship)</td>
+          <td><span class="dot scx"></span>QG-SCX — Supply-Chain Criticality (main index)</td>
           <td class="num" id="lvl-scx">—</td>
           <td id="chg-scx">—</td>
         </tr>
@@ -180,17 +181,17 @@
         <span id="rebase-note">Index = 100 at Jan 2010</span>
         <span>monthly · oxide baskets, FOB China · log scale</span>
       </div>
-      <p class="caption"><b>Figure 1.</b> The three Hephaestus indices, rebased to 100 at January 2010,
-        monthly, log scale. Hover to scrub (the crosshair snaps to a month); zoom with the buttons —
-        at 1Y and 3Y the axis resolves to months and quarters. On a linear axis the 2011 export-quota
-        spike flattens everything after it, so log is the default.</p>
+      <p class="caption"><b>Figure 1.</b> The three indices, set to 100 in January 2010, monthly, log
+        scale. Hover to read values at a given month; the range buttons zoom in, and at 1Y and 3Y the
+        axis switches to months and quarters. There is a linear option too, but the 2011 spike is so
+        large that it flattens everything after it, which is why log is the default.</p>
     </div>
 
     <h2>1. Method</h2>
-    <p>Each index is a fixed-quantity (Laspeyres) price index — the same construction as the S&amp;P GSCI
-      or a consumer price index. A representative basket of physical quantities is held constant and we
-      track the changing cost of buying it, so a move in the index is pure price, not a rebalancing
-      artefact:</p>
+    <p>Each index is a fixed-quantity (Laspeyres) price index, the same idea as the S&amp;P GSCI or the
+      consumer price index. You fix a basket of physical quantities and track how much that basket
+      costs over time. Because the quantities never change, a move in the index comes only from
+      prices and not from re-weighting:</p>
 
     <div class="eqn">
       $$ I_b(t) \;=\; 100 \times \frac{\sum_i q_i^{(b)}\, p_i(t)}{\sum_i q_i^{(b)}\, p_i(t_0)} $$
@@ -202,44 +203,46 @@
       \(q^{(b)}\):</p>
 
     <ul>
-      <li><b>QG-SCX</b> (Supply-Chain Criticality, the flagship): \(q_i = C_i\, S_i\, E_i\), where
-        \(C_i\) is global annual consumption, \(S_i\) is supply concentration (share of refined output
-        from the single dominant jurisdiction, an HHI proxy), and \(E_i\) is economic criticality
-        (end-use value, substitutability, defence relevance). Over-weights the fragile, hard-to-replace
-        links.</li>
-      <li><b>QG-MAG</b> (Permanent-Magnet basket): \(q_i = M_i\) for Nd, Pr, Dy, Tb and \(0\) otherwise,
-        with \(M_i\) the magnet-sector consumption. Just the NdFeB metals that drive EV motors, wind
-        turbines and precision-guided munitions.</li>
-      <li><b>QG-VAL</b> (Market value / demand): \(q_i = C_i\), raw consumption in tonnes. The neutral
-        cap-weight analogue — what the market physically buys.</li>
+      <li><b>QG-SCX</b> (Supply-Chain Criticality, the main one): \(q_i = C_i\, S_i\, E_i\), where
+        \(C_i\) is annual world consumption, \(S_i\) is how concentrated supply is (the refined-output
+        share of the largest producing country, used as an HHI proxy), and \(E_i\) is a measure of
+        economic importance (roughly the value of the end uses, how hard the element is to substitute,
+        and how much it matters for defence). This basket leans toward the elements that are both
+        important and supply-constrained.</li>
+      <li><b>QG-MAG</b> (Permanent-Magnet basket): \(q_i = M_i\) for Nd, Pr, Dy, Tb and \(0\) for
+        everything else, where \(M_i\) is consumption in the magnet sector. These are the four metals
+        in NdFeB magnets, which go into EV motors, wind turbines and guided munitions.</li>
+      <li><b>QG-VAL</b> (Market value / demand): \(q_i = C_i\), just annual consumption in tonnes.
+        The plain quantity-weighted version, closest to how much of each element the world actually uses.</li>
     </ul>
 
     <h3>Why a fixed basket</h3>
-    <p>Value-weighting with live prices lets a spiking element inflate its own weight and double-count
-      the move (a Paasche bias). Fixing quantities at their structural, consumption-based levels keeps
-      each index an honest price signal. The trade-off — weights drift from current market value as
-      prices move — is the right one for a research benchmark, and is stated rather than hidden.</p>
+    <p>If you weighted by live market value instead, an element whose price spikes would gain weight and
+      end up counting its own spike twice (a Paasche-type bias). Keeping the quantities fixed at
+      consumption-based levels avoids that, so each index stays a clean price signal. The cost is that
+      the weights slowly drift away from current market value as prices move. For a benchmark I think
+      that is the right trade-off, and it is worth being upfront about.</p>
 
     <h2>2. Data</h2>
-    <p>There is no live tape for rare-earth oxides; prices are published periodically by specialist
-      desks behind paywalls. Hephaestus is built from dated public anchor prints at the finest
-      resolution each market honestly supports — quarterly-to-monthly for the liquid magnet oxides
-      (Nd, Pr, Dy, Tb) that dominate every index, denser through the 2010–11 spike and the 2021–22
-      rally, and sparser for thin markets that do not trade every month. The monthly grid between
-      anchors is filled by log-linear interpolation. Intra-anchor volatility is deliberately not
-      fabricated: a straight segment on a log axis means "not observed this month." The chart's
-      texture is real structure — different elements turning in different months — not invented noise.
-      Resolution therefore varies by liquidity, shown by the flag in Table 1:</p>
+    <p>There is no continuous price feed for rare-earth oxides. Prices get published every so often by
+      specialist desks, and mostly behind paywalls. So the series here are built from dated public
+      prints, at whatever frequency each element actually gets quoted: roughly quarterly to monthly for
+      the liquid magnet oxides (Nd, Pr, Dy, Tb) that dominate the indices, with more detail around the
+      2010–11 spike and the 2021–22 rally, and much sparser for the thin ones. Months in between prints
+      are filled in by log-linear interpolation. I did not add any fake month-to-month noise, so a
+      straight line between two prints just means there was no quote in between. The wiggles that are
+      there come from different elements moving at different times, not from randomness. How fine the
+      data is depends on the element, which the flag in Table 1 records:</p>
     <ul>
-      <li><b>reported</b> — liquid, regularly-quoted oxide market; quarterly-to-monthly anchors that track published prints closely.</li>
-      <li><b>thin</b> — genuine but illiquid and sparsely quoted; coarser anchors, wider uncertainty.</li>
-      <li><b>modeled</b> — negligible traded volume (Sc, Tm); a documented estimate at coarse resolution.</li>
-      <li><b>promethium (Pm)</b> has no commercial market — radioactive, half-life in years — and is excluded from every index.</li>
+      <li><b>reported</b> — an actively quoted oxide market; prints are roughly quarterly to monthly and fairly reliable.</li>
+      <li><b>thin</b> — a real but illiquid market with sparse quotes, so the series is coarser and less certain.</li>
+      <li><b>modeled</b> — almost no traded volume (Sc, Tm); the series is an estimate rather than observed prints.</li>
+      <li><b>promethium (Pm)</b> has no real market, since it is radioactive and decays within years, so it is left out of all three indices.</li>
     </ul>
 
     <h2>3. Constituents</h2>
-    <p>The seventeen rare earths and their weight in each index. Weights are effective base-date value
-      shares (\(q_i\, p_i(t_0)\) normalised) — each element's contribution at the January 2010 rebasing.</p>
+    <p>The seventeen elements and their weight in each index. The weights shown are each element's
+      share of its index at the January 2010 base date (\(q_i\, p_i(t_0)\), normalised).</p>
     <div class="tbl-wrap">
       <table id="const">
         <thead>
@@ -258,9 +261,9 @@
         <tbody id="const-body"></tbody>
       </table>
     </div>
-    <p class="caption"><b>Table 1.</b> Constituents ordered by QG-VAL weight. Prices are the latest
-      monthly oxide anchors, rounded. "Heavy" / "Light" is the standard geochemical split. Weight
-      columns are percentages of each index at base date; "—" means the element is not in that basket.</p>
+    <p class="caption"><b>Table 1.</b> Elements ordered by QG-VAL weight. Prices are the latest monthly
+      oxide prints, rounded. "Heavy" and "Light" are the usual geochemical grouping. The weight columns
+      are percentages within each index at the base date; a dash means the element is not in that basket.</p>
 
     <h2>References</h2>
     <ol class="references">
@@ -270,14 +273,14 @@
       <li>Adamas Intelligence and trade press — end-use consumption splits informing the criticality and magnet baskets.</li>
     </ol>
 
-    <p class="disclaimer"><b>Disclaimer.</b> Hephaestus is a research and portfolio exercise, not
-      investment advice, a tradable product, or a live data feed. Oxide prices are periodic public
-      anchors with monthly interpolation, not tick data; absolute levels carry real uncertainty and
-      thin/modeled series more so. The value is in the construction and the relative dynamics, which
-      are reproducible from the method above.</p>
+    <p class="disclaimer"><b>Disclaimer.</b> This is a personal research project, not investment advice
+      or a live data product. The oxide prices are occasional public prints with interpolation in
+      between, not real-time data, so the absolute levels are approximate, and the thin and modeled
+      series more so. What should hold up is the method and the relative movements, both of which can
+      be reproduced from the description above.</p>
 
     <hr>
-    <p class="small">QueensGate Research &middot; Hephaestus &middot; <span id="foot-asof">—</span></p>
+    <p class="small">Sebastian Fioravante &middot; Hephaestus &middot; <span id="foot-asof">—</span></p>
   </div>
 
   <script src="/projects/hephaestus/app.js"></script>
