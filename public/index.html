@@ -122,9 +122,8 @@
       background-image: url("/assets/thumbnails/ariadne.jpeg");
     }
 
-    /* Hephaestus tile — generated fallback (rare-earth index family). Forge-lit
-       gradient echoing the magnet-amber + supply-chain-teal series accents. */
-    .tile.hephaestus .tile-bg {
+    /* Rare-earth index tile — generated fallback thumbnail. */
+    .tile.ree .tile-bg {
       background-color: #14100c;
       background-image:
         radial-gradient(120% 90% at 82% 12%, rgba(197,135,31,0.30), transparent 55%),
@@ -140,6 +139,10 @@
       justify-content: flex-start;
       padding-left: clamp(20px, 4vw, 48px);
       padding-right: clamp(20px, 4vw, 48px);
+    }
+    /* Legibility scrim so titles + descriptions read over any thumbnail. */
+    .tile:not(.soon) .tile-overlay {
+      background: linear-gradient(90deg, rgba(9, 11, 11, 0.62) 0%, rgba(9, 11, 11, 0.30) 42%, rgba(9, 11, 11, 0) 72%);
     }
     .tile-copy { display: flex; flex-direction: column; gap: 8px; }
     .tile-cat {
@@ -159,6 +162,16 @@
     }
     .tile:not(.soon):hover .tile-title { color: var(--accent); }
     .tile.soon .tile-cat { color: var(--faint); }
+    .tile-desc {
+      font-family: var(--sans);
+      font-weight: 300;
+      font-size: clamp(0.78rem, 1.02vw, 0.95rem);
+      line-height: 1.45;
+      letter-spacing: -0.005em;
+      color: rgba(237, 237, 234, 0.72);
+      max-width: 42ch;
+      margin-top: 2px;
+    }
 
     /* Corner registration ticks — same instrument mark as the Ariadne map itself. */
     .tick {
@@ -196,18 +209,20 @@
         <div class="tile-copy">
           <span class="tile-cat">Maritime Intelligence</span>
           <span class="tile-title">Ariadne</span>
+          <span class="tile-desc">Real-time tanker tracking and crude-flow analytics for the Strait of Hormuz oil chokepoint.</span>
         </div>
       </div>
     </a>
 
-    <a class="tile hephaestus" href="/projects/hephaestus">
+    <a class="tile ree" href="/projects/rare-earth-index">
       <div class="tile-bg"></div>
       <span class="tick tl"></span><span class="tick tr"></span>
       <span class="tick bl"></span><span class="tick br"></span>
       <div class="tile-overlay">
         <div class="tile-copy">
           <span class="tile-cat">Critical Minerals</span>
-          <span class="tile-title">Hephaestus</span>
+          <span class="tile-title">Rare Earth Elements Index</span>
+          <span class="tile-desc">Price indices across the seventeen rare-earth oxides, weighted by supply risk, magnet demand and market value.</span>
         </div>
       </div>
     </a>

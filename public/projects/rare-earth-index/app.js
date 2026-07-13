@@ -1,7 +1,7 @@
 'use strict';
 
 /**
- * Hephaestus — rare-earth element index family.
+ * Rare Earth Elements Index — a family of rare-earth oxide price indices.
  *
  * Three fixed-basket (Laspeyres) price indices over the seventeen rare earths,
  * rebased to 100 at Jan-2010. One estimator, three quantity vectors:
