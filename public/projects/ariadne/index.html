@@ -345,6 +345,25 @@
     .spark .line { fill: none; stroke: var(--accent); stroke-width: 1.5; }
     .spark .last { fill: var(--accent); }
     .spark .last.hot { fill: #c2b87a; }
+    /* Per-point hover: a crosshair guide + dot revealed under the cursor. */
+    .spark svg:hover .last { opacity: 0; }               /* hide static marker while probing */
+    .spark .pt .guide { stroke: var(--line-strong); stroke-width: 1; opacity: 0; }
+    .spark .pt .dot { fill: var(--accent); opacity: 0; }
+    .spark .pt .hit { fill: transparent; cursor: crosshair; }
+    .spark .pt:hover .guide, .spark .pt:hover .dot { opacity: 1; }
+
+    /* Floating value tooltip shared by every analytics mark (bars, rows, sparks). */
+    #chart-tip {
+      position: fixed; z-index: 9999; pointer-events: none;
+      max-width: 220px; padding: 5px 8px;
+      background: var(--bg-elev); border: 1px solid var(--line-strong); border-radius: 4px;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.45);
+      font-family: var(--mono); font-size: 11px; line-height: 1.4; color: var(--text);
+      white-space: nowrap; opacity: 0; transform: translateY(2px);
+      transition: opacity 0.09s ease; }
+    #chart-tip.on { opacity: 1; transform: none; }
+    #chart-tip b { color: var(--accent); font-weight: 600; }
+    .dist .bar, .daybars .col, .reg-row { cursor: default; }
 
     /* Region / list rows shared by destinations + floating storage. */
     .reg-row { display: flex; align-items: center; gap: 9px; padding: 5px 0; border-top: 1px solid var(--line-soft); font-size: 12px; }

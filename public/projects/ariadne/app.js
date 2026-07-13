@@ -150,6 +150,56 @@ function esc(s) {
     ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 }
 
+// --- Hover value tooltip for analytics marks --------------------------------
+// One floating element driven by [data-tip] on any mark: histogram/day bars,
+// region rows, and the per-point hit bands injected into the sparklines. The
+// attribute carries ready-to-render HTML (double quotes pre-escaped by tipAttr).
+const chartTip = (() => {
+  let el = null;
+  const node = () => (el || (el = document.body.appendChild(
+    Object.assign(document.createElement('div'), { id: 'chart-tip' }))));
+  function show(html, x, y) {
+    const t = node();
+    t.innerHTML = html;
+    t.classList.add('on');
+    const r = t.getBoundingClientRect();
+    let left = x + 12;
+    let top = y - r.height - 10;
+    if (left + r.width > window.innerWidth - 6) left = x - r.width - 12; // flip left near edge
+    if (top < 6) top = y + 16;                                          // drop below near top
+    t.style.left = `${Math.max(6, left)}px`;
+    t.style.top = `${top}px`;
+  }
+  return { show, hide: () => el && el.classList.remove('on') };
+})();
+
+// data-tip attribute holding arbitrary HTML (quotes escaped so it survives the
+// attribute context; unescaped again when injected as innerHTML on hover).
+const tipAttr = (html) => ` data-tip="${String(html).replace(/"/g, '&quot;')}"`;
+
+document.addEventListener('mousemove', (e) => {
+  const m = e.target.closest && e.target.closest('[data-tip]');
+  if (m) chartTip.show(m.getAttribute('data-tip'), e.clientX, e.clientY);
+  else chartTip.hide();
+});
+document.addEventListener('mouseleave', () => chartTip.hide());
+
+// Transparent per-point hit bands (+ crosshair guide and dot) laid over a
+// sparkline so each data point reveals its value on hover. label(i) → tip HTML.
+function sparkHover(vals, X, Y, H, W, label) {
+  const n = vals.length;
+  const bw = n > 1 ? W / (n - 1) : W;
+  return vals.map((v, i) => {
+    const cx = X(i);
+    const rx = Math.max(0, cx - bw / 2);
+    return `<g class="pt">` +
+      `<line class="guide" x1="${cx.toFixed(1)}" y1="0" x2="${cx.toFixed(1)}" y2="${H}" vector-effect="non-scaling-stroke"/>` +
+      `<circle class="dot" cx="${cx.toFixed(1)}" cy="${Y(v).toFixed(1)}" r="2.5"/>` +
+      `<rect class="hit" x="${rx.toFixed(1)}" y="0" width="${bw.toFixed(1)}" height="${H}"${tipAttr(label(i))}/>` +
+      `</g>`;
+  }).join('');
+}
+
 function fmtEta(eta) {
   if (!eta) return '—';
   const d = new Date(eta);
@@ -751,7 +801,9 @@ function renderTransitDist(t) {
   el.innerHTML = t.histogram.map((b, i) => {
     const h = Math.max(2, Math.round((b.count / max) * 44));
     const cls = i === medBin ? 'bar p50' : 'bar';
-    return `<span class="${cls}" style="height:${h}px" title="${b.from}–${b.to} min · ${b.count}"></span>`;
+    const tip = `<b>${b.count}</b> passage${b.count === 1 ? '' : 's'} · ${b.from}–${b.to} min` +
+      (i === medBin ? ' · median bin' : '');
+    return `<span class="${cls}" style="height:${h}px"${tipAttr(tip)}></span>`;
   }).join('');
   if (note) note.textContent =
     `p10 ${fmtMin(t.p10)} · p50 ${fmtMin(t.p50)} · p90 ${fmtMin(t.p90)} · n=${t.n}`;
@@ -807,7 +859,8 @@ async function refreshFlow() {
       const max = Math.max(1, ...bc.map((c) => c.barrels));
       el.innerHTML = bc.map((c) => {
         const pct = Math.round((c.barrels / max) * 100);
-        return `<div class="reg-row"><span class="reg-name">${esc(c.class)}</span>` +
+        const tip = `<b>${esc(c.class)}</b> · ${fmtBbl(c.barrels)} bbl (size-proxy)`;
+        return `<div class="reg-row"${tipAttr(tip)}><span class="reg-name">${esc(c.class)}</span>` +
           `<span class="reg-bar"><i style="width:${pct}%"></i></span>` +
           `<span class="reg-cnt">${fmtBbl(c.barrels)}</span></div>`;
       }).join('');
@@ -845,7 +898,9 @@ function renderActivity(a) {
   el.innerHTML = series.map((s) => {
     const o = Math.round((s.outbound / max) * H);
     const i = Math.round((s.inbound / max) * H);
-    return `<span class="col" title="${md(s)} · ${s.outbound} out / ${s.inbound} in">` +
+    const tip = `<b>${md(s)}</b> · ${s.outbound + s.inbound} passages<br>` +
+      `${s.outbound} outbound · ${s.inbound} inbound`;
+    return `<span class="col"${tipAttr(tip)}>` +
       `<span class="in" style="height:${i}px"></span>` +
       `<span class="out" style="height:${o}px"></span></span>`;
   }).join('');
@@ -878,10 +933,16 @@ function renderRunRate(f) {
   const area = `M0,${H} ${vals.map((v, i) => `L${X(i).toFixed(1)},${Y(v).toFixed(1)}`).join(' ')} L${W},${H} Z`;
   const st = f.outbound || {};
   const hot = Math.abs(st.z || 0) >= 2;
+  const md = (s) => new Date(s.bucket).toISOString().slice(5, 10);
+  const hover = sparkHover(vals, X, Y, H, W, (i) => {
+    const s = f.series[i];
+    return `<b>${md(s)}</b> · ${fmtBbl(s.outbound)} bbl outbound<br>${s.outPassages || 0} tanker passages`;
+  });
   spark.innerHTML =
     `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">` +
     `<path class="area" d="${area}"/><path class="line" d="${line}"/>` +
     `<circle class="last${hot ? ' hot' : ''}" cx="${X(n - 1).toFixed(1)}" cy="${Y(vals[n - 1]).toFixed(1)}" r="2.5"/>` +
+    hover +
     `</svg>`;
   set('rr-latest', fmtBbl(st.latest));
   const z = st.z || 0;
@@ -957,10 +1018,16 @@ function renderHistory(h) {
   const area = `M${X(0).toFixed(1)},${H} ` +
     vals.map((v, i) => `L${X(i).toFixed(1)},${Y(v).toFixed(1)}`).join(' ') +
     ` L${X(n - 1).toFixed(1)},${H} Z`;
+  const hover = sparkHover(vals, X, Y, H, W, (i) => {
+    const s = series[i];
+    const cov = s.parked ? Math.round((s.laden_count / s.parked) * 100) : 0;
+    return `<b>${s.d.slice(5)}</b> · ${fmtBbl(s.barrels)} bbl<br>${s.parked} parked · ${cov}% laden`;
+  });
   spark.innerHTML =
     `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">` +
     (n > 1 ? `<path class="area" d="${area}"/><path class="line" d="${line}"/>` : '') +
     `<circle class="last" cx="${X(n - 1).toFixed(1)}" cy="${Y(vals[n - 1]).toFixed(1)}" r="2.5"/>` +
+    hover +
     `</svg>`;
 
   const last = series[series.length - 1];
@@ -992,7 +1059,8 @@ function renderDestinations(d) {
   const max = Math.max(1, ...d.regions.map((r) => r.count));
   el.innerHTML = d.regions.map((r) => {
     const pct = Math.round((r.count / max) * 100);
-    return `<div class="reg-row"><span class="reg-name">${esc(r.region)}</span>` +
+    const tip = `<b>${esc(r.region)}</b> · ${r.count} tanker${r.count === 1 ? '' : 's'}`;
+    return `<div class="reg-row"${tipAttr(tip)}><span class="reg-name">${esc(r.region)}</span>` +
       `<span class="reg-bar"><i style="width:${pct}%"></i></span>` +
       `<span class="reg-cnt">${r.count}</span></div>`;
   }).join('');
