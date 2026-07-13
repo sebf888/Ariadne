@@ -122,6 +122,16 @@
       background-image: url("/assets/thumbnails/ariadne.jpeg");
     }
 
+    /* Hephaestus tile — generated fallback (rare-earth index family). Forge-lit
+       gradient echoing the magnet-amber + supply-chain-teal series accents. */
+    .tile.hephaestus .tile-bg {
+      background-color: #14100c;
+      background-image:
+        radial-gradient(120% 90% at 82% 12%, rgba(197,135,31,0.30), transparent 55%),
+        radial-gradient(90% 80% at 12% 96%, rgba(47,154,134,0.22), transparent 60%),
+        linear-gradient(180deg, #17130e, #100d0b);
+    }
+
     .tile-overlay {
       position: absolute;
       inset: 0;
@@ -190,14 +200,17 @@
       </div>
     </a>
 
-    <div class="tile soon">
+    <a class="tile hephaestus" href="/projects/hephaestus">
       <div class="tile-bg"></div>
+      <span class="tick tl"></span><span class="tick tr"></span>
+      <span class="tick bl"></span><span class="tick br"></span>
       <div class="tile-overlay">
         <div class="tile-copy">
-          <span class="tile-cat">Coming soon</span>
+          <span class="tile-cat">Critical Minerals</span>
+          <span class="tile-title">Hephaestus</span>
         </div>
       </div>
-    </div>
+    </a>
 
     <div class="tile soon row2">
       <div class="tile-bg"></div>
